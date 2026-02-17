@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Lock, User, ArrowRight, Database } from 'lucide-react';
-import { supabase } from '../services/supabase';
+import { Lock, User, ArrowRight, Database, ExternalLink, HelpCircle } from 'lucide-react';
+import { supabaseKey, supabaseUrl } from '../services/supabase';
 
 export const Login: React.FC = () => {
   const [username, setUsername] = useState('');
@@ -12,9 +12,12 @@ export const Login: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  // Verifica se as chaves estão configuradas (Quick Check)
-  // Usamos a instancia do supabase para verificar a URL, evitando acessar import.meta.env aqui diretamente
-  const showConfigWarning = (supabase as any).supabaseUrl?.includes('sua-url');
+  // Verifica se a chave é válida (não é o texto placeholder e tem tamanho razoável)
+  const isKeyInvalid = !supabaseKey || supabaseKey.includes('COLE_SUA') || supabaseKey.length < 20;
+  
+  // Extrai o ID do projeto da URL para criar o link direto
+  const projectRef = supabaseUrl?.split('.')[0]?.replace('https://', '');
+  const settingsLink = `https://supabase.com/dashboard/project/${projectRef}/settings/api`;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,14 +124,30 @@ export const Login: React.FC = () => {
             <p className="text-center text-gray-500 font-medium tracking-wider text-sm mt-2">SOLUÇÕES FINANCEIRAS</p>
         </div>
 
-        {showConfigWarning && (
-           <div className="mb-4 bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-xs text-yellow-800">
-             <div className="font-bold flex items-center gap-2 mb-1"><Database size={14}/> Configuração Necessária</div>
-             O sistema foi migrado para Supabase. Você precisa configurar as chaves de API no arquivo <code>.env</code> ou nas variáveis de ambiente da Vercel.
+        {isKeyInvalid && (
+           <div className="mb-6 bg-yellow-50 border border-yellow-200 p-4 rounded-xl text-sm text-yellow-800 animate-in fade-in slide-in-from-top-4">
+             <div className="font-bold flex items-center gap-2 mb-2 text-yellow-900">
+               <HelpCircle size={18}/> Chave de API Não Encontrada
+             </div>
+             <p className="mb-3">Você precisa copiar a chave <code>anon / public</code> do painel do Supabase.</p>
+             
+             <a 
+               href={settingsLink} 
+               target="_blank" 
+               rel="noopener noreferrer"
+               className="flex items-center justify-center gap-2 w-full bg-yellow-100 hover:bg-yellow-200 text-yellow-900 font-bold py-2 px-4 rounded-lg transition-colors border border-yellow-300"
+             >
+               <Database size={16} />
+               Abrir Painel Supabase
+               <ExternalLink size={14} />
+             </a>
+             <p className="mt-2 text-[10px] text-yellow-700 text-center">
+               Vá em: Project Settings (Engrenagem) &gt; API &gt; Project API keys
+             </p>
            </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6 mt-8">
+        <form onSubmit={handleSubmit} className="space-y-6 mt-4">
           {error && (
             <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg border border-red-100 flex items-center justify-center animate-pulse">
               {error}
@@ -146,8 +165,9 @@ export const Login: React.FC = () => {
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border-2 border-gray-100 rounded-xl focus:ring-0 focus:border-dias-teal outline-none transition-all bg-gray-50 focus:bg-white text-gray-800 font-medium"
+                className="w-full pl-10 pr-4 py-3 border-2 border-gray-100 rounded-xl focus:ring-0 focus:border-dias-teal outline-none transition-all bg-gray-50 focus:bg-white text-gray-800 font-medium disabled:opacity-50"
                 placeholder="Identificação (ex: junior.rafael)"
+                disabled={isKeyInvalid}
               />
             </div>
           </div>
@@ -163,16 +183,17 @@ export const Login: React.FC = () => {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border-2 border-gray-100 rounded-xl focus:ring-0 focus:border-dias-teal outline-none transition-all bg-gray-50 focus:bg-white text-gray-800 font-medium"
+                className="w-full pl-10 pr-4 py-3 border-2 border-gray-100 rounded-xl focus:ring-0 focus:border-dias-teal outline-none transition-all bg-gray-50 focus:bg-white text-gray-800 font-medium disabled:opacity-50"
                 placeholder="••••••••"
+                disabled={isKeyInvalid}
               />
             </div>
           </div>
 
           <button
             type="submit"
-            disabled={isLoading || showConfigWarning}
-            className={`w-full bg-gradient-to-r from-dias-teal to-[#00606e] hover:from-[#00606e] hover:to-dias-teal text-white font-bold py-4 rounded-xl shadow-lg shadow-cyan-900/20 transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2 mt-4 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+            disabled={isLoading || isKeyInvalid}
+            className={`w-full bg-gradient-to-r from-dias-teal to-[#00606e] hover:from-[#00606e] hover:to-dias-teal text-white font-bold py-4 rounded-xl shadow-lg shadow-cyan-900/20 transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2 mt-4 ${isLoading || isKeyInvalid ? 'opacity-50 cursor-not-allowed transform-none' : ''}`}
           >
             {isLoading ? 'CONECTANDO...' : 'ACESSAR'}
             {!isLoading && <ArrowRight size={20} />}

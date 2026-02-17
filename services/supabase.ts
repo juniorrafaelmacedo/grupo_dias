@@ -14,12 +14,16 @@ const getEnvVar = (key: string, defaultValue: string) => {
   return defaultValue;
 };
 
-// NOTA: Em produção (Vercel), essas variáveis devem estar configuradas no painel da Vercel.
-// Para rodar localmente, crie um arquivo .env
-const supabaseUrl = getEnvVar('VITE_SUPABASE_URL', 'https://sua-url-do-projeto.supabase.co');
-const supabaseKey = getEnvVar('VITE_SUPABASE_ANON_KEY', 'sua-chave-anonima');
+// --- CONFIGURAÇÃO SUPABASE ---
+// Em produção (Vercel), defina essas variáveis nas configurações do projeto.
+export const supabaseUrl = getEnvVar('VITE_SUPABASE_URL', '');
+export const supabaseKey = getEnvVar('VITE_SUPABASE_ANON_KEY', '');
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// Fallback preventivo para evitar crash se as vars não existirem (mas o login avisará)
+const validUrl = supabaseUrl || 'https://placeholder.supabase.co';
+const validKey = supabaseKey || 'placeholder-key';
+
+export const supabase = createClient(validUrl, validKey);
 
 // Helper para converter snake_case (Banco) para camelCase (App)
 export const mapCompanyFromDB = (data: any): any => ({
@@ -70,7 +74,7 @@ export const mapPayableToDB = (data: any): any => ({
   company_id: data.companyId,
   tipo: data.tipo,
   nome_favorecido: data.nomeFavorecido,
-  cpf_cnpj_favorecido: data.cpfCnpjFavorecido,
+  cpf_cnpj_favorecido: data.cpf_cnpj_favorecido,
   numero_nf: data.numeroNF,
   filial: data.filial,
   setor: data.setor,
