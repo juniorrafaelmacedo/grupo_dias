@@ -42,84 +42,20 @@ export const Login: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#f0f0f0] font-sans relative overflow-hidden p-4">
       
-      <style>{`
-        .logo-container {
-            position: relative;
-            width: 290px; /* Reduzido para ficar mais compacto */
-            height: 120px;
-            margin: 0 auto 10px auto;
-        }
-        .dias-text {
-            position: absolute;
-            font-size: 80px;
-            font-weight: 900;
-            color: #00798a;
-            text-shadow: 
-                0 0 10px rgba(0,121,138,0.5),
-                -2px 0 4px rgba(0,0,0,0.1);
-            letter-spacing: -3px;
-            top: 15px;
-            left: 15px;
-            z-index: 2;
-        }
-        .speed-lines {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(
-                90deg,
-                transparent 0%,
-                rgba(0,121,138,0.05) 20%,
-                rgba(0,121,138,0.25) 50%,
-                rgba(0,121,138,0.05) 80%,
-                transparent 100%
-            );
-            transform: skewX(-15deg);
-            z-index: 1;
-            border-radius: 20px;
-        }
-        .plus-symbol {
-            position: absolute;
-            top: 15px;
-            left: 205px; /* Posicionado bem próximo ao texto */
-            font-size: 80px;
-            font-weight: 900;
-            color: #00a86b;
-            text-shadow: 
-                0 0 15px rgba(0,168,107,0.6),
-                2px 2px 8px rgba(0,0,0,0.2);
-            z-index: 3;
-            transform: scale(1.1);
-        }
-        .blur-trail {
-            position: absolute;
-            top: 15px;
-            left: 20px;
-            font-size: 80px;
-            font-weight: 900;
-            color: rgba(0,121,138,0.4);
-            letter-spacing: -3px;
-            z-index: 0;
-            filter: blur(4px);
-        }
-      `}</style>
-
-      <div className="bg-white p-6 md:p-8 rounded-3xl shadow-2xl w-full max-w-md border-t-8 border-dias-teal relative z-10">
+      <div className="bg-white p-6 md:p-8 rounded-3xl shadow-2xl w-full max-w-md border-t-8 border-dias-teal relative z-10 animate-in fade-in zoom-in-95 duration-300">
         
-        <div className="mb-6">
-            <div className="logo-container transform scale-75 sm:scale-90 md:scale-100 origin-center">
-                <div className="speed-lines"></div>
-                <div className="blur-trail">DIAS</div>
-                <div className="dias-text">DIAS</div>
-                <div className="plus-symbol">+</div>
+        <div className="mb-8 text-center">
+            {/* Logo usando a fonte Orbitron que o usuário gostou */}
+            <div className="relative inline-block">
+                <h1 className="text-[70px] leading-none font-black italic tracking-tighter text-dias-teal font-orbitron" style={{ textShadow: '2px 2px 0px rgba(0,0,0,0.05)' }}>
+                    DIAS<span className="text-dias-green">+</span>
+                </h1>
             </div>
-            <p className="text-center text-gray-500 font-medium tracking-wider text-sm mt-1">SOLUÇÕES FINANCEIRAS</p>
+            <p className="text-center text-gray-400 font-bold tracking-[0.2em] text-xs mt-2 uppercase">Soluções Financeiras</p>
         </div>
 
         {isKeyInvalid && (
-           <div className="mb-6 bg-yellow-50 border border-yellow-200 p-4 rounded-xl text-sm text-yellow-800 animate-in fade-in slide-in-from-top-4">
+           <div className="mb-6 bg-yellow-50 border border-yellow-200 p-4 rounded-xl text-sm text-yellow-800">
              <div className="font-bold flex items-center gap-2 mb-2 text-yellow-900">
                <HelpCircle size={18}/> Chave de API Não Encontrada
              </div>
@@ -135,13 +71,10 @@ export const Login: React.FC = () => {
                Abrir Painel Supabase
                <ExternalLink size={14} />
              </a>
-             <p className="mt-2 text-[10px] text-yellow-700 text-center">
-               Vá em: Project Settings (Engrenagem) &gt; API &gt; Project API keys
-             </p>
            </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6 mt-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
             <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg border border-red-100 flex items-center justify-center animate-pulse">
               {error}
@@ -149,7 +82,7 @@ export const Login: React.FC = () => {
           )}
 
           <div className="space-y-2">
-            <label className="text-xs font-bold text-dias-teal uppercase tracking-wider ml-1">Usuário</label>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Usuário</label>
             <div className="relative group">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-dias-teal transition-colors">
                 <User size={20} />
@@ -167,7 +100,7 @@ export const Login: React.FC = () => {
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-bold text-dias-teal uppercase tracking-wider ml-1">Senha</label>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Senha</label>
             <div className="relative group">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-dias-teal transition-colors">
                 <Lock size={20} />
@@ -189,16 +122,17 @@ export const Login: React.FC = () => {
             disabled={isLoading || isKeyInvalid}
             className={`w-full bg-gradient-to-r from-dias-teal to-[#00606e] hover:from-[#00606e] hover:to-dias-teal text-white font-bold py-4 rounded-xl shadow-lg shadow-cyan-900/20 transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2 mt-4 ${isLoading || isKeyInvalid ? 'opacity-50 cursor-not-allowed transform-none' : ''}`}
           >
-            {isLoading ? 'CONECTANDO...' : 'ACESSAR'}
+            {isLoading ? 'CONECTANDO...' : 'ACESSAR SISTEMA'}
             {!isLoading && <ArrowRight size={20} />}
           </button>
         </form>
 
         <div className="mt-8 text-center text-[10px] text-gray-400 font-medium uppercase tracking-widest">
-          &copy; {new Date().getFullYear()} Grupo Dias | Cloud Verified
+          &copy; {new Date().getFullYear()} Grupo Dias | Logistics
         </div>
       </div>
       
+      {/* Decorações de Fundo Sutis (Versão Anterior) */}
       <div className="absolute top-0 left-0 w-full h-1/2 bg-dias-teal/5 skew-y-3 transform -translate-y-20 z-0"></div>
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-dias-green/5 rounded-full blur-3xl z-0"></div>
     </div>
