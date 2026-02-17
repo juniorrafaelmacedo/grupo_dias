@@ -45,8 +45,8 @@ export const Login: React.FC = () => {
       <style>{`
         .logo-container {
             position: relative;
-            width: 300px;
-            height: 140px;
+            width: 290px; /* Reduzido para ficar mais compacto */
+            height: 120px;
             margin: 0 auto 10px auto;
         }
         .dias-text {
@@ -58,8 +58,8 @@ export const Login: React.FC = () => {
                 0 0 10px rgba(0,121,138,0.5),
                 -2px 0 4px rgba(0,0,0,0.1);
             letter-spacing: -3px;
-            top: 20px;
-            left: 20px;
+            top: 15px;
+            left: 15px;
             z-index: 2;
         }
         .speed-lines {
@@ -69,28 +69,22 @@ export const Login: React.FC = () => {
             width: 100%;
             height: 100%;
             background: linear-gradient(
-                45deg,
+                90deg,
                 transparent 0%,
-                rgba(0,121,138,0.1) 20%,
-                rgba(0,121,138,0.3) 40%,
-                transparent 60%,
-                rgba(0,121,138,0.1) 80%,
+                rgba(0,121,138,0.05) 20%,
+                rgba(0,121,138,0.25) 50%,
+                rgba(0,121,138,0.05) 80%,
                 transparent 100%
             );
-            animation: speed 2s infinite linear;
+            transform: skewX(-15deg);
             z-index: 1;
             border-radius: 20px;
         }
-        @keyframes speed {
-            0% { transform: translateX(-20px) skewX(-10deg); opacity: 0.7; }
-            50% { transform: translateX(0) skewX(-5deg); opacity: 1; }
-            100% { transform: translateX(20px) skewX(-10deg); opacity: 0.7; }
-        }
         .plus-symbol {
             position: absolute;
-            bottom: 25px;
-            right: 40px;
-            font-size: 100px;
+            top: 15px;
+            left: 205px; /* Posicionado bem próximo ao texto */
+            font-size: 80px;
             font-weight: 900;
             color: #00a86b;
             text-shadow: 
@@ -101,14 +95,14 @@ export const Login: React.FC = () => {
         }
         .blur-trail {
             position: absolute;
-            top: 25px;
-            left: 25px;
-            font-size: 75px;
+            top: 15px;
+            left: 20px;
+            font-size: 80px;
             font-weight: 900;
             color: rgba(0,121,138,0.4);
             letter-spacing: -3px;
             z-index: 0;
-            filter: blur(2px);
+            filter: blur(4px);
         }
       `}</style>
 
@@ -121,7 +115,7 @@ export const Login: React.FC = () => {
                 <div className="dias-text">DIAS</div>
                 <div className="plus-symbol">+</div>
             </div>
-            <p className="text-center text-gray-500 font-medium tracking-wider text-sm mt-2">SOLUÇÕES FINANCEIRAS</p>
+            <p className="text-center text-gray-500 font-medium tracking-wider text-sm mt-1">SOLUÇÕES FINANCEIRAS</p>
         </div>
 
         {isKeyInvalid && (
