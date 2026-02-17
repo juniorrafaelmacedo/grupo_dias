@@ -40,7 +40,7 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#f0f0f0] font-sans relative overflow-hidden">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#f0f0f0] font-sans relative overflow-hidden p-4">
       
       <style>{`
         .logo-container {
@@ -112,10 +112,10 @@ export const Login: React.FC = () => {
         }
       `}</style>
 
-      <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md border-t-8 border-dias-teal relative z-10">
+      <div className="bg-white p-6 md:p-8 rounded-3xl shadow-2xl w-full max-w-md border-t-8 border-dias-teal relative z-10">
         
         <div className="mb-6">
-            <div className="logo-container transform scale-90 md:scale-100 origin-center">
+            <div className="logo-container transform scale-75 sm:scale-90 md:scale-100 origin-center">
                 <div className="speed-lines"></div>
                 <div className="blur-trail">DIAS</div>
                 <div className="dias-text">DIAS</div>

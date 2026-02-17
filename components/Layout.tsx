@@ -3,7 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { ICONS } from '../constants';
 import { useFinance } from '../context/FinanceContext';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, Settings as SettingsIcon, KeyRound } from 'lucide-react';
+import { LogOut, Settings as SettingsIcon, KeyRound, Menu, X } from 'lucide-react';
 
 export const Layout: React.FC = () => {
   const { companies, selectedCompanyId, selectCompany } = useFinance();
@@ -12,6 +12,7 @@ export const Layout: React.FC = () => {
 
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const isConsolidated = selectedCompanyId === 'all';
   const currentCompanyName = isConsolidated 
@@ -40,15 +41,42 @@ export const Layout: React.FC = () => {
     setPasswordForm({ current: '', new: '', confirm: '' });
   };
 
+  const closeMobileMenu = () => setIsMobileMenuOpen(false);
+
   return (
     <div className="flex h-screen bg-gray-50 text-gray-900 font-sans overflow-hidden">
+      
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-20 md:hidden backdrop-blur-sm"
+          onClick={closeMobileMenu}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 bg-slate-900 text-white flex flex-col shadow-xl relative z-20">
+      <aside 
+        className={`
+          fixed md:relative z-30 h-full w-64 bg-slate-900 text-white flex flex-col shadow-xl 
+          transition-transform duration-300 ease-in-out
+          ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+        `}
+      >
         <div className="p-6 border-b border-slate-800 bg-slate-900">
-          <div className="flex items-end gap-1 mb-6 select-none">
-            {/* Logo Simplificado para Sidebar */}
-            <span className="text-3xl font-black text-dias-teal tracking-tighter" style={{ textShadow: '0 0 10px rgba(0,121,138,0.3)' }}>DIAS</span>
-            <span className="text-4xl font-black text-dias-green leading-none -ml-1 transform -translate-y-1 drop-shadow-lg">+</span>
+          <div className="flex justify-between items-start mb-6">
+            <div className="flex items-end gap-1 select-none">
+              {/* Logo Simplificado para Sidebar */}
+              <span className="text-3xl font-black text-dias-teal tracking-tighter" style={{ textShadow: '0 0 10px rgba(0,121,138,0.3)' }}>DIAS</span>
+              <span className="text-4xl font-black text-dias-green leading-none -ml-1 transform -translate-y-1 drop-shadow-lg">+</span>
+            </div>
+            
+            {/* Mobile Close Button */}
+            <button 
+              onClick={closeMobileMenu}
+              className="md:hidden text-slate-400 hover:text-white p-1"
+            >
+              <X size={24} />
+            </button>
           </div>
           
           {/* Company Switcher */}
@@ -56,7 +84,7 @@ export const Layout: React.FC = () => {
              <label className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1 block">Contexto / Empresa</label>
              <select 
                value={selectedCompanyId}
-               onChange={(e) => selectCompany(e.target.value)}
+               onChange={(e) => { selectCompany(e.target.value); closeMobileMenu(); }}
                className="w-full bg-slate-800 border border-slate-700 text-white text-sm rounded-lg p-2.5 focus:ring-1 focus:ring-dias-teal outline-none transition-all"
              >
                <option value="all">🏢 TODAS (Consolidado)</option>
@@ -68,9 +96,10 @@ export const Layout: React.FC = () => {
           </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-2">
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           <NavLink 
             to="/" 
+            onClick={closeMobileMenu}
             className={({ isActive }) => 
               `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                 isActive ? 'bg-dias-teal text-white shadow-lg shadow-cyan-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
@@ -83,6 +112,7 @@ export const Layout: React.FC = () => {
           
           <NavLink 
             to="/payables" 
+            onClick={closeMobileMenu}
             className={({ isActive }) => 
               `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                 isActive ? 'bg-dias-teal text-white shadow-lg shadow-cyan-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
@@ -95,6 +125,7 @@ export const Layout: React.FC = () => {
 
           <NavLink 
             to="/settings" 
+            onClick={closeMobileMenu}
             className={({ isActive }) => 
               `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                 isActive ? 'bg-dias-teal text-white shadow-lg shadow-cyan-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
@@ -108,6 +139,7 @@ export const Layout: React.FC = () => {
           {user?.role === 'admin' && (
             <NavLink 
               to="/users" 
+              onClick={closeMobileMenu}
               className={({ isActive }) => 
                 `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                   isActive ? 'bg-dias-teal text-white shadow-lg shadow-cyan-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
@@ -120,19 +152,19 @@ export const Layout: React.FC = () => {
           )}
         </nav>
 
-        <div className="p-4 border-t border-slate-800 space-y-3">
+        <div className="p-4 border-t border-slate-800 space-y-3 bg-slate-900">
           <div className="bg-slate-800 rounded-lg p-3 flex items-center justify-between group">
              <div className="flex items-center gap-2">
                <div className="w-2 h-2 rounded-full bg-dias-green animate-pulse"></div>
                <span className="text-sm font-medium text-slate-300">Online</span>
              </div>
              <div className="text-right flex items-center gap-2">
-               <div>
-                 <span className="text-xs text-white block font-semibold">{user?.username}</span>
+               <div className="max-w-[100px] overflow-hidden">
+                 <span className="text-xs text-white block font-semibold truncate">{user?.username}</span>
                  <span className="text-[10px] text-slate-400 uppercase">{user?.role === 'admin' ? 'Admin' : 'Operador'}</span>
                </div>
                <button 
-                 onClick={() => setIsProfileModalOpen(true)}
+                 onClick={() => { setIsProfileModalOpen(true); closeMobileMenu(); }}
                  className="text-slate-500 hover:text-dias-teal transition-colors"
                  title="Alterar Minha Senha"
                >
@@ -152,14 +184,24 @@ export const Layout: React.FC = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto bg-[#f0f0f0]">
-        <header className="bg-white border-b border-gray-200 px-8 py-4 flex justify-between items-center sticky top-0 z-10 shadow-sm">
-          <div className="flex items-center gap-2">
-             <h2 className="text-gray-500 text-sm font-medium uppercase tracking-wider">Área de Trabalho</h2>
-             <span className="text-gray-300">/</span>
-             <span className="text-gray-900 font-medium">
-               {currentCompanyName}
-             </span>
+      <main className="flex-1 overflow-auto bg-[#f0f0f0] w-full">
+        <header className="bg-white border-b border-gray-200 px-4 md:px-8 py-4 flex justify-between items-center sticky top-0 z-10 shadow-sm">
+          <div className="flex items-center gap-3">
+             {/* Mobile Hamburger */}
+             <button 
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="md:hidden text-gray-600 hover:text-dias-teal p-1 rounded hover:bg-gray-100"
+             >
+                <Menu size={24} />
+             </button>
+
+             <div className="flex items-center gap-2">
+                <h2 className="hidden sm:block text-gray-500 text-sm font-medium uppercase tracking-wider">Área de Trabalho</h2>
+                <span className="hidden sm:block text-gray-300">/</span>
+                <span className="text-gray-900 font-medium text-sm sm:text-base truncate max-w-[150px] sm:max-w-none">
+                  {currentCompanyName}
+                </span>
+             </div>
           </div>
           <div className="flex items-center gap-4">
              <div className={`w-8 h-8 rounded-full ${isConsolidated ? 'bg-slate-700' : 'bg-dias-teal'} text-white flex items-center justify-center font-bold text-sm shadow-md`}>
@@ -167,7 +209,9 @@ export const Layout: React.FC = () => {
              </div>
           </div>
         </header>
-        <div className="p-8">
+        
+        {/* Responsive Padding Content */}
+        <div className="p-4 md:p-8">
           <Outlet />
         </div>
       </main>
