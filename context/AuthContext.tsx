@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { User } from '../types';
 import { supabase } from '../services/supabase';
 
@@ -20,6 +20,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const [usersList, setUsersList] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Refs para controle de inatividade
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const INACTIVITY_LIMIT = 10 * 60 * 1000; // 10 minutos em milissegundos
 
   // Load Session and Listen for Changes
   useEffect(() => {
@@ -47,6 +51,50 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // --- LÓGICA DE INATIVIDADE ---
+  useEffect(() => {
+    if (!user) return; // Só monitora se estiver logado
+
+    const handleLogoutInactivity = () => {
+      logout();
+      alert("Sessão encerrada por inatividade (10 minutos). Por favor, faça login novamente.");
+    };
+
+    const resetTimer = () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(handleLogoutInactivity, INACTIVITY_LIMIT);
+    };
+
+    // Eventos que reiniciam o timer
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    
+    // Throttle simples para evitar chamar resetTimer excessivamente no mousemove
+    let isThrottled = false;
+    const handleActivity = () => {
+      if (!isThrottled) {
+        resetTimer();
+        isThrottled = true;
+        setTimeout(() => { isThrottled = false; }, 1000); // Só reseta a cada 1 segundo no máximo
+      }
+    };
+
+    // Adiciona listeners
+    events.forEach(event => {
+      document.addEventListener(event, handleActivity);
+    });
+
+    // Inicia o timer
+    resetTimer();
+
+    // Cleanup ao desmontar ou deslogar
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      events.forEach(event => {
+        document.removeEventListener(event, handleActivity);
+      });
+    };
+  }, [user]); // Recria o listener quando o user muda (log in/out)
 
   const fetchProfile = async (userId: string) => {
     try {
@@ -113,6 +161,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = async () => {
     await supabase.auth.signOut();
+    if (timerRef.current) clearTimeout(timerRef.current);
     setUser(null);
   };
 

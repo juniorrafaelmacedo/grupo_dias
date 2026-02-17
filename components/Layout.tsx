@@ -81,7 +81,7 @@ export const Layout: React.FC = () => {
           
           {/* Company Switcher */}
           <div className="relative">
-             <label className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1 block">Contexto / Empresa</label>
+             <label className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1 block">Empresa</label>
              <select 
                value={selectedCompanyId}
                onChange={(e) => { selectCompany(e.target.value); closeMobileMenu(); }}
