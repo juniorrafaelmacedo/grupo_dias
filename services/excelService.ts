@@ -1,6 +1,17 @@
 import * as XLSX from 'xlsx';
 import { Payable, PaymentType, Company } from '../types';
 
+// Mapeamento de Apelidos (Excel) -> Razão Social (Sistema)
+const COMPANY_ALIASES: Record<string, string> = {
+  "DIAS": "DIAS ENTREGADORA LTDA",
+  "DIAS+": "DIAS DELIVERY SERV ADM LTDA",
+  "MM": "MM DELIVERY TRANSPORTES LTDA",
+  "MD": "M.D.DELIVERY TRANSPORTES EIREL",
+  "CERTA": "CERTA GER CARGAS LTDA",
+  "TECIM": "TECIM SOLUCOES LTDA",
+  "SAFE": "SAFE ADMINISTRACAO LTDA"
+};
+
 export const downloadTemplate = () => {
   // --- SHEET 1: MODELO DE IMPORTAÇÃO ---
   const wsData = [
@@ -29,10 +40,10 @@ export const downloadTemplate = () => {
       'Chave PIX'
     ],
     [
-      'DIAS LOGISTICA MATRIZ', 'Matriz', 'TI', '01', 'João Silva', '12345678900', '1001', '25/12/2023', '25/12/2023', 1500.50, 1500.50, 'Adiantamento', 'Serviço prestado', 'Despesa', 'Operacional', 'Projeto X', '', '341', '1234', '56789', '0', ''
+      'DIAS', 'Matriz', 'TI', '01', 'João Silva', '12345678900', '1001', '25/12/2023', '25/12/2023', 1500.50, 1500.50, 'Adiantamento', 'Serviço prestado', 'Despesa', 'Operacional', 'Projeto X', '', '341', '1234', '56789', '0', ''
     ],
     [
-      'DIAS LOGISTICA FILIAL SP', 'Filial 1', 'Adm', '06', 'Empresa X', '12345678000199', '2005', '26/12/2023', '26/12/2023', 500.00, 0, '', 'Pix Serviço', 'Custo', 'Fixo', '', '', '', '', '', '', 'email@chave.com'
+      'DIAS+', 'Filial 1', 'Adm', '06', 'Empresa X', '12345678000199', '2005', '26/12/2023', '26/12/2023', 500.00, 0, '', 'Pix Serviço', 'Custo', 'Fixo', '', '', '', '', '', '', 'email@chave.com'
     ]
   ];
 
@@ -119,20 +130,40 @@ export const parseImportFile = async (
              return; 
           }
 
-          // --- Company Matching Logic ---
+          // --- Company Matching Logic (Revised with Aliases) ---
           let targetCompanyId = currentCompanyId;
-          const empresaNome = cleanString(row['Empresa']);
+          const rawEmpresaNome = cleanString(row['Empresa']);
           
-          if (empresaNome) {
-            // Fuzzy match logic: Check ID or Name (case insensitive)
-            const foundCompany = availableCompanies.find(c => 
-              c.nomeEmpresa.toLowerCase() === empresaNome.toLowerCase() || 
-              c.id === empresaNome
-            );
+          if (rawEmpresaNome) {
+            const normalizedInput = rawEmpresaNome.toUpperCase();
+            
+            // 1. Tenta resolver via Alias (Apelido -> Nome Completo)
+            const resolvedName = COMPANY_ALIASES[normalizedInput] || normalizedInput;
+
+            // 2. Busca na lista de empresas disponíveis
+            const foundCompany = availableCompanies.find(c => {
+              const dbName = c.nomeEmpresa.toUpperCase();
+              
+              // A. Match Exato (pós resolução de alias)
+              if (dbName === resolvedName) return true;
+              
+              // B. Match ID direto
+              if (c.id === rawEmpresaNome) return true;
+
+              // C. Match Parcial (Contém) - Cuidado para não misturar DIAS com DIAS+
+              // Se o alias resolveu, usamos match exato. Se não, tentamos contains.
+              if (!COMPANY_ALIASES[normalizedInput]) {
+                 return dbName.includes(normalizedInput) || normalizedInput.includes(dbName);
+              }
+              return false;
+            });
+
             if (foundCompany) {
               targetCompanyId = foundCompany.id;
-            } 
-            // If no match found, it stays as currentCompanyId (fallback)
+            } else {
+               // Optional: Log warning that company wasn't found but continuing with default/current
+               // console.warn(`Empresa '${rawEmpresaNome}' não encontrada no sistema.`);
+            }
           }
 
           const tipo = (cleanString(row['Tipo Pagto (Cod)'] || row['Tipo (Cod)']).padStart(2, '0') as PaymentType) || '01';
