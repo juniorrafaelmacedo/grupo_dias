@@ -67,14 +67,14 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
   const addPayment = async (payment: Payable) => {
     // Omit ID to let DB generate UUID, or keep if generating locally
     const payload = mapPayableToDB(payment);
-    delete payload.id; // Let Supabase gen ID
+    delete payload.id; // Let Supabase gen ID for payments
 
     const { data, error } = await supabase.from('payables').insert(payload).select().single();
     if (data && !error) {
         setPayments(prev => [...prev, mapPayableFromDB(data)]);
     } else {
         console.error(error);
-        alert('Erro ao salvar pagamento');
+        alert('Erro ao salvar pagamento: ' + error?.message);
     }
   };
 
@@ -87,7 +87,7 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
     if (!error) {
         setPayments(prev => prev.map(p => p.id === id ? { ...p, ...updatedPayment } : p));
     } else {
-        alert('Erro ao atualizar');
+        alert('Erro ao atualizar: ' + error?.message);
     }
   };
 
@@ -111,10 +111,15 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   const addCompany = async (company: Company) => {
     const payload = mapCompanyToDB(company);
-    delete payload.id;
-
+    // IMPORTANTE: Não deletar o ID, pois ele é gerado no front (Date.now()) ou manualmente
+    
     const { data, error } = await supabase.from('companies').insert(payload).select().single();
-    if (data && !error) {
+    if (error) {
+      console.error("Erro ao adicionar empresa:", error);
+      throw new Error(error.message);
+    }
+    
+    if (data) {
         setCompanies(prev => [...prev, mapCompanyFromDB(data)]);
     }
   };
@@ -123,9 +128,12 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
     const payload = mapCompanyToDB(updatedCompany);
     const { error } = await supabase.from('companies').update(payload).eq('id', updatedCompany.id);
     
-    if (!error) {
-        setCompanies(prev => prev.map(c => c.id === updatedCompany.id ? updatedCompany : c));
+    if (error) {
+       console.error("Erro ao atualizar empresa:", error);
+       throw new Error(error.message);
     }
+
+    setCompanies(prev => prev.map(c => c.id === updatedCompany.id ? updatedCompany : c));
   };
 
   const selectCompany = (id: string) => {

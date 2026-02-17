@@ -166,7 +166,7 @@ export const Login: React.FC = () => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 border-2 border-gray-100 rounded-xl focus:ring-0 focus:border-dias-teal outline-none transition-all bg-gray-50 focus:bg-white text-gray-800 font-medium disabled:opacity-50"
-                placeholder="Identificação (ex: junior.rafael)"
+                placeholder="Identificação"
                 disabled={isKeyInvalid}
               />
             </div>

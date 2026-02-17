@@ -35,6 +35,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
+        // If we already have the user loaded and the ID matches, we might skip fetching, 
+        // but fetching ensures roles are up to date.
+        // We do not set loading to true here to avoid flashing, as fetchProfile handles it gracefully.
         fetchProfile(session.user.id);
       } else {
         setUser(null);
@@ -98,6 +101,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (error) {
       return { success: false, error: error.message };
     }
+
+    // CRITICAL FIX: Ensure profile is loaded before returning success
+    // This prevents the UI from redirecting before the 'user' state is populated
+    if (data.session) {
+      await fetchProfile(data.session.user.id);
+    }
+
     return { success: true };
   };
 

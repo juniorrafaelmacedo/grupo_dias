@@ -36,6 +36,7 @@ export const mapCompanyFromDB = (data: any): any => ({
 });
 
 export const mapCompanyToDB = (data: any): any => ({
+  id: data.id, // Mapeamento do ID incluído para permitir inserção manual
   nome_empresa: data.nomeEmpresa,
   cnpj: data.cnpj,
   banco_agencia: data.bancoAgencia,
@@ -71,6 +72,7 @@ export const mapPayableFromDB = (data: any): any => ({
 });
 
 export const mapPayableToDB = (data: any): any => ({
+  // id: data.id, // Pagamentos geralmente deixamos o DB gerar UUID, exceto se for migração
   company_id: data.companyId,
   tipo: data.tipo,
   nome_favorecido: data.nomeFavorecido,

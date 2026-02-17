@@ -29,10 +29,10 @@ export const downloadTemplate = () => {
       'Chave PIX'
     ],
     [
-      'Minha Empresa LTDA', 'Matriz', 'TI', '01', 'João Silva', '12345678900', '1001', '25/12/2023', '25/12/2023', 1500.50, 1500.50, 'Adiantamento', 'Serviço prestado', 'Despesa', 'Operacional', 'Projeto X', '', '341', '1234', '56789', '0', ''
+      'DIAS LOGISTICA MATRIZ', 'Matriz', 'TI', '01', 'João Silva', '12345678900', '1001', '25/12/2023', '25/12/2023', 1500.50, 1500.50, 'Adiantamento', 'Serviço prestado', 'Despesa', 'Operacional', 'Projeto X', '', '341', '1234', '56789', '0', ''
     ],
     [
-      'Minha Empresa LTDA', 'Filial 1', 'Adm', '06', 'Empresa X', '12345678000199', '2005', '26/12/2023', '26/12/2023', 500.00, 0, '', 'Pix Serviço', 'Custo', 'Fixo', '', '', '', '', '', '', 'email@chave.com'
+      'DIAS LOGISTICA FILIAL SP', 'Filial 1', 'Adm', '06', 'Empresa X', '12345678000199', '2005', '26/12/2023', '26/12/2023', 500.00, 0, '', 'Pix Serviço', 'Custo', 'Fixo', '', '', '', '', '', '', 'email@chave.com'
     ]
   ];
 
@@ -124,18 +124,15 @@ export const parseImportFile = async (
           const empresaNome = cleanString(row['Empresa']);
           
           if (empresaNome) {
+            // Fuzzy match logic: Check ID or Name (case insensitive)
             const foundCompany = availableCompanies.find(c => 
               c.nomeEmpresa.toLowerCase() === empresaNome.toLowerCase() || 
               c.id === empresaNome
             );
             if (foundCompany) {
               targetCompanyId = foundCompany.id;
-            } else {
-              // Option: Fail row or Warning? Let's add a warning but default to current
-              // forcing user to verify, OR just error out. 
-              // Better UX: Default to current but maybe could log a warning.
-              // For now, strict match or fallback to current context.
-            }
+            } 
+            // If no match found, it stays as currentCompanyId (fallback)
           }
 
           const tipo = (cleanString(row['Tipo Pagto (Cod)'] || row['Tipo (Cod)']).padStart(2, '0') as PaymentType) || '01';
