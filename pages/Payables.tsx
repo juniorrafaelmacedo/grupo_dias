@@ -2,7 +2,7 @@ import React, { useState, useRef, useMemo } from 'react';
 import { useFinance } from '../context/FinanceContext';
 import { Payable, PaymentType } from '../types';
 import { ICONS, PAYMENT_TYPES } from '../constants';
-import { formatCurrency, formatDate } from '../utils/formatters';
+import { formatCurrency, formatDate, generateUUID } from '../utils/formatters';
 import { generateCNAB240 } from '../services/cnabService';
 import { downloadTemplate, parseImportFile } from '../services/excelService';
 import { Edit2, Filter, Calendar } from 'lucide-react';
@@ -129,7 +129,7 @@ export const Payables: React.FC = () => {
       const newPayment: Payable = {
         ...initialFormState,
         ...formData as Payable,
-        id: Date.now().toString(),
+        id: generateUUID(),
         companyId: selectedCompanyId,
         valor: Number(formData.valor),
         saldo: Number(formData.saldo || 0),

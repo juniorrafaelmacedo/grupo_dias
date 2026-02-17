@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import { Payable, PaymentType, Company } from '../types';
+import { generateUUID } from '../utils/formatters';
 
 // Mapeamento de Apelidos (Excel) -> Razão Social (Sistema)
 const COMPANY_ALIASES: Record<string, string> = {
@@ -208,7 +209,7 @@ export const parseImportFile = async (
           };
 
           const payment: Payable = {
-            id: Date.now().toString() + Math.random().toString().substring(2, 6),
+            id: generateUUID(), // Use UUID
             companyId: targetCompanyId, // Using the matched ID
             status: 'PENDING',
             

@@ -65,10 +65,10 @@ export const FinanceProvider: React.FC<{ children: ReactNode }> = ({ children })
   [companies, selectedCompanyId]);
 
   const addPayment = async (payment: Payable) => {
-    // Omit ID to let DB generate UUID, or keep if generating locally
+    // Pass ID to DB. If DB column is UUID and ID is missing, we must generate it.
+    // We assume payment object already has an ID from the frontend.
     const payload = mapPayableToDB(payment);
-    delete payload.id; // Let Supabase gen ID for payments
-
+    
     const { data, error } = await supabase.from('payables').insert(payload).select().single();
     if (data && !error) {
         setPayments(prev => [...prev, mapPayableFromDB(data)]);

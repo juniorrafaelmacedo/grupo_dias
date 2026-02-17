@@ -72,7 +72,7 @@ export const mapPayableFromDB = (data: any): any => ({
 });
 
 export const mapPayableToDB = (data: any): any => ({
-  // id: data.id, // Pagamentos geralmente deixamos o DB gerar UUID, exceto se for migração
+  id: data.id, // Agora passamos o ID gerado no front
   company_id: data.companyId,
   tipo: data.tipo,
   nome_favorecido: data.nomeFavorecido,
