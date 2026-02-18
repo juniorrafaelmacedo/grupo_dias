@@ -1,31 +1,19 @@
 import { Payable, Company } from '../types';
-import { padLeft, padRight, removeNonNumeric, formatDateCNAB, formatTimeCNAB } from '../utils/formatters';
+import { padLeft, padRight, removeNonNumeric, formatDateCNAB, formatTimeCNAB, normalizeText } from '../utils/formatters';
 
-interface PaymentGroup {
-  forma: string; 
-  tipoServico: string; 
-  layoutLote: string; 
-  payments: Payable[];
-}
-
-const getSispagAttributes = (p: Payable): { forma: string; tipoServico: string; layoutLote: string } => {
-  if (p.tipo === '02') {
-    // SISPAG v085: Mudança para Tipo 20 (Fornecedores) para evitar erro de "Tipo 03 não contratado"
-    return { tipoServico: '20', forma: '30', layoutLote: '030' };
+// Helper para garantir que o valor seja inserido na posição exata (1-indexed)
+const writeAt = (line: string, pos: number, value: string | number, length: number, padChar: string = ' '): string => {
+  const strValue = normalizeText(String(value)).substring(0, length);
+  const paddedValue = padChar === '0' ? strValue.padStart(length, '0') : strValue.padEnd(length, ' ');
+  
+  const lineArray = line.split('');
+  for (let i = 0; i < length; i++) {
+    lineArray[pos - 1 + i] = paddedValue[i];
   }
-  if (p.tipo === '04') {
-    return { tipoServico: '22', forma: '13', layoutLote: '030' };
-  }
-  if (p.tipo === '06') {
-    return { tipoServico: '20', forma: '45', layoutLote: '040' };
-  }
-  const destBank = p.bancoDestino || '';
-  if (destBank === '341') {
-    return { tipoServico: '20', forma: '01', layoutLote: '040' };
-  } else {
-    return { tipoServico: '20', forma: '41', layoutLote: '040' };
-  }
+  return lineArray.join('');
 };
+
+const createEmptyLine = () => ' '.repeat(240);
 
 export const generateCNAB240 = (
   company: Company, 
@@ -37,176 +25,128 @@ export const generateCNAB240 = (
   const dateGeracao = formatDateCNAB(now.toISOString().split('T')[0]);
   const timeGeracao = formatTimeCNAB(now);
 
-  const groups: Record<string, PaymentGroup> = {};
-  payments.forEach(p => {
-    const attrs = getSispagAttributes(p);
-    const key = `${attrs.tipoServico}-${attrs.forma}-${attrs.layoutLote}`;
-    if (!groups[key]) groups[key] = { ...attrs, payments: [] };
-    groups[key].payments.push(p);
-  });
-
-  const addLine = (line: string) => {
-    // Força rigorosamente 240 caracteres com espaços à direita
-    lines.push(line.padEnd(240, ' ').substring(0, 240));
-  };
-
   let recordCountGlobal = 0;
 
   // --- HEADER DE ARQUIVO (Registro 0) ---
-  let header = '34100000'; 
-  header += ' '.repeat(9);
-  header += company.cnpj.length > 11 ? '2' : '1';
-  header += padLeft(removeNonNumeric(company.cnpj), 14);
-  header += ' '.repeat(20);
-  header += padLeft(company.bancoAgencia, 5);
-  header += ' ';
-  header += padLeft(company.bancoConta, 12);
-  header += ' ';
-  header += padLeft(company.bancoContaDV, 1);
-  header += padRight(company.nomeEmpresa, 30);
-  header += padRight('BANCO ITAU S.A.', 30);
-  header += ' '.repeat(10);
-  header += '1'; 
-  header += dateGeracao;
-  header += timeGeracao;
-  header += padLeft(fileSequence, 6);
-  header += '085'; 
-  header += '00000';
-  header += ' '.repeat(69);
-  addLine(header);
+  let hArq = createEmptyLine();
+  hArq = writeAt(hArq, 1, '341', 3);
+  hArq = writeAt(hArq, 4, '0000', 4);
+  hArq = writeAt(hArq, 8, '0', 1);
+  hArq = writeAt(hArq, 18, company.cnpj.length > 11 ? '2' : '1', 1);
+  hArq = writeAt(hArq, 19, removeNonNumeric(company.cnpj), 14, '0');
+  hArq = writeAt(hArq, 53, company.bancoAgencia, 5, '0');
+  hArq = writeAt(hArq, 59, company.bancoConta, 12, '0');
+  hArq = writeAt(hArq, 72, company.bancoContaDV, 1);
+  hArq = writeAt(hArq, 73, company.nomeEmpresa, 30);
+  hArq = writeAt(hArq, 103, 'BANCO ITAU S.A.', 30);
+  hArq = writeAt(hArq, 143, '1', 1);
+  hArq = writeAt(hArq, 144, dateGeracao, 8);
+  hArq = writeAt(hArq, 152, timeGeracao, 6);
+  hArq = writeAt(hArq, 158, fileSequence, 6, '0');
+  hArq = writeAt(hArq, 164, '085', 3);
+  lines.push(hArq);
   recordCountGlobal++;
 
-  let loteCount = 0;
-  Object.values(groups).forEach((group) => {
-    loteCount++;
-    const loteSeq = padLeft(loteCount, 4);
-    let nsrBatch = 0;
-    let totalValorLote = 0;
+  // Agrupamento básico (nesta versão simplificamos para um lote principal de boletos)
+  const loteSeq = '0001';
+  let nsrBatch = 0;
+  let totalValorLote = 0;
 
-    // --- HEADER DE LOTE (Registro 1) ---
-    // Pos 009: Operação '1' (Lançamento)
-    // Pos 010-011: Serviço '20' (Pagamento Fornecedores)
-    // Pos 012-013: Forma '30' (Liquidação de Títulos - Boletos)
-    // Pos 014-016: Layout '030'
-    let headerLote = '341' + loteSeq + '1' + '1'; 
-    headerLote += padLeft(group.tipoServico, 2); 
-    headerLote += padLeft(group.forma, 2);       
-    headerLote += padLeft(group.layoutLote, 3);  
-    headerLote += ' ';                           
-    headerLote += company.cnpj.length > 11 ? '2' : '1';
-    headerLote += padLeft(removeNonNumeric(company.cnpj), 14);
-    headerLote += ' '.repeat(20);
-    headerLote += padLeft(company.bancoAgencia, 5);
-    headerLote += ' ';
-    headerLote += padLeft(company.bancoConta, 12);
-    headerLote += ' ';
-    headerLote += padLeft(company.bancoContaDV, 1);
-    headerLote += padRight(company.nomeEmpresa, 30);
+  // --- HEADER DE LOTE (Registro 1) ---
+  let hLote = createEmptyLine();
+  hLote = writeAt(hLote, 1, '341', 3);
+  hLote = writeAt(hLote, 4, loteSeq, 4);
+  hLote = writeAt(hLote, 8, '1', 1);
+  hLote = writeAt(hLote, 9, '1', 1);       // Operação: Lançamento
+  hLote = writeAt(hLote, 10, '20', 2);     // Serviço: Fornecedores
+  hLote = writeAt(hLote, 12, '30', 2);     // Forma: Boletos
+  hLote = writeAt(hLote, 14, '030', 3);    // Layout v085
+  hLote = writeAt(hLote, 18, company.cnpj.length > 11 ? '2' : '1', 1);
+  hLote = writeAt(hLote, 19, removeNonNumeric(company.cnpj), 14, '0');
+  hLote = writeAt(hLote, 53, company.bancoAgencia, 5, '0');
+  hLote = writeAt(hLote, 59, company.bancoConta, 12, '0');
+  hLote = writeAt(hLote, 72, company.bancoContaDV, 1);
+  hLote = writeAt(hLote, 73, company.nomeEmpresa, 30);
+  hLote = writeAt(hLote, 103, 'PAGAMENTO FORNECEDORES BOLETOS', 30);
+  lines.push(hLote);
+  recordCountGlobal++;
+
+  payments.forEach((p) => {
+    totalValorLote += p.valor;
+    const valorStr15 = padLeft(Math.round(p.valor * 100), 15);
+    const dataPagto = formatDateCNAB(p.dataPagamento);
+    const dataVenc = formatDateCNAB(p.dataVencimento);
+
+    // --- SEGMENTO J (Registro 3) ---
+    nsrBatch++;
+    let segJ = createEmptyLine();
+    segJ = writeAt(segJ, 1, '341', 3);
+    segJ = writeAt(segJ, 4, loteSeq, 4);
+    segJ = writeAt(segJ, 8, '3', 1);
+    segJ = writeAt(segJ, 9, nsrBatch, 5, '0');
+    segJ = writeAt(segJ, 14, 'J', 1);
+    segJ = writeAt(segJ, 15, '000', 3); // Movimento Inclusão
     
-    // MENSAGEM DE FINALIDADE (pos 103-132)
-    headerLote += padRight('PAGAMENTO FORNECEDORES BOLETOS', 30);
+    // Código de Barras (Pos 18-61)
+    let barCode = removeNonNumeric(p.codigoBarras || '');
+    if (barCode.length === 47) {
+        barCode = barCode.substring(0, 3) + barCode.substring(3, 4) + barCode.substring(32, 47) + barCode.substring(4, 9) + barCode.substring(10, 20) + barCode.substring(21, 31);
+    }
+    segJ = writeAt(segJ, 18, barCode, 44, '0');
     
-    headerLote += ' '.repeat(38); // Complemento
-    headerLote += ' '.repeat(70); // Reservado
-    addLine(headerLote);
+    segJ = writeAt(segJ, 62, p.nomeFavorecido, 30);
+    segJ = writeAt(segJ, 92, dataVenc, 8);
+    segJ = writeAt(segJ, 100, valorStr15, 15, '0');
+    segJ = writeAt(segJ, 115, '0', 15, '0'); // Desconto
+    segJ = writeAt(segJ, 130, '0', 15, '0'); // Multa
+    segJ = writeAt(segJ, 145, dataPagto, 8);
+    segJ = writeAt(segJ, 153, valorStr15, 15, '0');
+    segJ = writeAt(segJ, 183, p.id.substring(0, 20), 20);
+    lines.push(segJ);
     recordCountGlobal++;
 
-    group.payments.forEach((p) => {
-      totalValorLote += p.valor;
-      const valorStr15 = padLeft(Math.round(p.valor * 100), 15);
-      const dataPagto = formatDateCNAB(p.dataPagamento);
-      const dataVenc = formatDateCNAB(p.dataVencimento);
-
-      if (group.layoutLote === '040') {
-        // --- SEGMENTO A ---
-        nsrBatch++;
-        let segA = '341' + loteSeq + '3' + padLeft(nsrBatch, 5) + 'A';
-        segA += '000'; 
-        segA += p.tipo === '06' ? '009' : '018'; 
-        segA += padLeft(p.bancoDestino || '000', 3);
-        segA += padLeft(p.agenciaDestino || '0', 5) + ' ' + padLeft(p.contaDestino || '0', 12) + padLeft(p.contaDestinoDV || '0', 1) + ' ';
-        segA += padRight(p.nomeFavorecido, 30);
-        segA += padLeft(p.id.substring(0, 20), 20);
-        segA += dataPagto;
-        segA += 'REA' + padLeft(0, 8);
-        segA += (p.tipo === '06' && p.chavePix) ? '04' : '01';
-        segA += padLeft(0, 5) + valorStr15 + ' '.repeat(15) + ' '.repeat(5) + padLeft(0, 8) + padLeft(0, 15);
-        segA += ' '.repeat(20) + ' '.repeat(6) + padLeft(removeNonNumeric(p.cpfCnpjFavorecido), 14) + ' '.repeat(2) + '00005' + ' '.repeat(5) + '0' + ' '.repeat(10);
-        addLine(segA);
-        recordCountGlobal++;
-      } else {
-        // --- SEGMENTO J (BOLETOS) ---
-        nsrBatch++;
-        let segJ = '341' + loteSeq + '3' + padLeft(nsrBatch, 5) + 'J';
-        segJ += '000'; // Tipo Movimento 000 (Inclusão)
-        
-        // CÓDIGO DE BARRAS (44 caracteres começando na 018)
-        let barCode = removeNonNumeric(p.codigoBarras || '');
-        if (barCode.length === 47) {
-            barCode = barCode.substring(0, 3) + barCode.substring(3, 4) + barCode.substring(32, 47) + barCode.substring(4, 9) + barCode.substring(10, 20) + barCode.substring(21, 31);
-        }
-        segJ += padRight(barCode.substring(0, 44), 44, '0'); 
-        
-        segJ += padRight(p.nomeFavorecido, 30); // 062-091
-        segJ += dataVenc; // 092-099
-        segJ += valorStr15; // 100-114
-        segJ += padLeft(0, 15); // Descontos
-        segJ += padLeft(0, 15); // Acréscimos
-        segJ += dataPagto; // 145-152
-        segJ += valorStr15; // 153-167
-        segJ += padLeft(0, 15); // Quantidade
-        segJ += padRight(p.id.substring(0, 20), 20); // Seu Número
-        segJ += padLeft(0, 15); // Nosso Número
-        segJ += ' '; // 218
-        addLine(segJ);
-        recordCountGlobal++;
-
-        // --- SEGMENTO J-52 (IDENTIFICAÇÃO) ---
-        nsrBatch++;
-        let segJ52 = '341' + loteSeq + '3' + padLeft(nsrBatch, 5);
-        segJ52 += '5';   // 014: SEGMENTO 5 (Identificação Sacado/Cedente)
-        segJ52 += '000'; // 015-017: MOVIMENTO
-        segJ52 += '2J';  // 018-019: CÓDIGO 2J
-        
-        // Pagador (Nós)
-        segJ52 += (company.cnpj.length > 11 ? '2' : '1');
-        segJ52 += padLeft(removeNonNumeric(company.cnpj), 15); 
-        segJ52 += padRight(company.nomeEmpresa, 40);
-        
-        // Beneficiário (Fornecedor)
-        segJ52 += (removeNonNumeric(p.cpfCnpjFavorecido).length > 11 ? '2' : '1');
-        segJ52 += padLeft(removeNonNumeric(p.cpfCnpjFavorecido), 15);
-        segJ52 += padRight(p.nomeFavorecido, 40);
-        
-        // Sacador Avalista (Vazio)
-        segJ52 += '0';
-        segJ52 += padLeft(0, 15);
-        segJ52 += ' '.repeat(40);
-        
-        addLine(segJ52);
-        recordCountGlobal++;
-      }
-    });
-
-    // --- TRAILER DE LOTE (Registro 5) ---
-    let trailerLote = '341' + loteSeq + '5';
-    trailerLote += ' '.repeat(9); 
-    trailerLote += padLeft(nsrBatch + 2, 6); 
-    trailerLote += padLeft(Math.round(totalValorLote * 100), 18);
-    trailerLote += padLeft(0, 18); 
-    trailerLote += ' '.repeat(171); 
-    trailerLote += ' '.repeat(10); 
-    addLine(trailerLote);
+    // --- SEGMENTO J-52 (Registro 3) ---
+    nsrBatch++;
+    let segJ52 = createEmptyLine();
+    segJ52 = writeAt(segJ52, 1, '341', 3);
+    segJ52 = writeAt(segJ52, 4, loteSeq, 4);
+    segJ52 = writeAt(segJ52, 8, '3', 1);
+    segJ52 = writeAt(segJ52, 9, nsrBatch, 5, '0');
+    segJ52 = writeAt(segJ52, 14, 'J', 1);
+    segJ52 = writeAt(segJ52, 15, '000', 3);
+    segJ52 = writeAt(segJ52, 18, '52', 2); // IDENTIFICADOR J-52
+    
+    // Dados do Pagador (Nós)
+    segJ52 = writeAt(segJ52, 20, company.cnpj.length > 11 ? '2' : '1', 1);
+    segJ52 = writeAt(segJ52, 21, removeNonNumeric(company.cnpj), 15, '0');
+    segJ52 = writeAt(segJ52, 36, company.nomeEmpresa, 40);
+    
+    // Dados do Beneficiário (Fornecedor)
+    segJ52 = writeAt(segJ52, 76, removeNonNumeric(p.cpfCnpjFavorecido).length > 11 ? '2' : '1', 1);
+    segJ52 = writeAt(segJ52, 77, removeNonNumeric(p.cpfCnpjFavorecido), 15, '0');
+    segJ52 = writeAt(segJ52, 92, p.nomeFavorecido, 40);
+    lines.push(segJ52);
     recordCountGlobal++;
   });
 
+  // --- TRAILER DE LOTE (Registro 5) ---
+  let tLote = createEmptyLine();
+  tLote = writeAt(tLote, 1, '341', 3);
+  tLote = writeAt(tLote, 4, loteSeq, 4);
+  tLote = writeAt(tLote, 8, '5', 1);
+  tLote = writeAt(tLote, 18, nsrBatch + 2, 6, '0');
+  tLote = writeAt(tLote, 24, Math.round(totalValorLote * 100), 18, '0');
+  lines.push(tLote);
+  recordCountGlobal++;
+
   // --- TRAILER DE ARQUIVO (Registro 9) ---
-  let trailerArq = '34199999'; 
-  trailerArq += ' '.repeat(9);
-  trailerArq += padLeft(loteCount, 6); 
-  trailerArq += padLeft(recordCountGlobal + 1, 6); 
-  trailerArq += ' '.repeat(211); 
-  addLine(trailerArq);
+  let tArq = createEmptyLine();
+  tArq = writeAt(tArq, 1, '341', 3);
+  tArq = writeAt(tArq, 4, '9999', 4);
+  tArq = writeAt(tArq, 8, '9', 1);
+  tArq = writeAt(tArq, 18, '1', 6, '0'); // Qtd lotes
+  tArq = writeAt(tArq, 24, recordCountGlobal + 1, 6, '0'); // Qtd registros
+  lines.push(tArq);
 
   return lines.join('\r\n') + '\r\n';
 };
