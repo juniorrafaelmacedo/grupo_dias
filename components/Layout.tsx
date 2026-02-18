@@ -88,7 +88,7 @@ export const Layout: React.FC = () => {
           
           <div className="text-center pt-2 pb-1 border-t border-slate-800/50 mt-2">
             <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest flex items-center justify-center gap-1">
-              <Info size={10} /> Sistema DIAS+ v4.2.2
+              <Info size={10} /> Sistema DIAS+ v4.2.3
             </p>
           </div>
         </div>
@@ -129,7 +129,7 @@ export const Layout: React.FC = () => {
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setIsProfileModalOpen(false)} className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm font-medium">Cancelar</button>
-                <button type="submit" className="px-4 py-2 bg-dias-teal text-white rounded-lg text-sm font-medium hover:bg-[#00606e]">Atualizar Senha</button>
+                <button type="submit" className="px-4 py-2 bg-dias-teal text-white rounded-lg font-medium hover:bg-[#00606e]">Atualizar Senha</button>
               </div>
             </form>
           </div>

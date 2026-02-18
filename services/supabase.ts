@@ -90,7 +90,7 @@ export const mapPayableToDB = (data: any): any => ({
   id: data.id,
   company_id: data.companyId,
   tipo: data.tipo,
-  nome__favorecido: data.nomeFavorecido,
+  nome_favorecido: data.nomeFavorecido,
   cpf_cnpj_favorecido: data.cpfCnpjFavorecido,
   numero_nf: data.numeroNF,
   filial: data.filial,
