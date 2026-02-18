@@ -15,15 +15,30 @@ const getEnvVar = (key: string, defaultValue: string) => {
 };
 
 // --- CONFIGURAÇÃO SUPABASE ---
-// Em produção (Vercel), defina essas variáveis nas configurações do projeto.
 export const supabaseUrl = getEnvVar('VITE_SUPABASE_URL', '');
 export const supabaseKey = getEnvVar('VITE_SUPABASE_ANON_KEY', '');
 
-// Fallback preventivo para evitar crash se as vars não existirem (mas o login avisará)
+// Verifica se as chaves são válidas ou apenas placeholders
+const isPlaceholder = !supabaseUrl || !supabaseKey || supabaseKey.includes('COLE_SUA') || supabaseKey.length < 20;
+
 const validUrl = supabaseUrl || 'https://placeholder.supabase.co';
 const validKey = supabaseKey || 'placeholder-key';
 
-export const supabase = createClient(validUrl, validKey);
+// Inicializa o cliente Supabase
+// Se for placeholder, desativamos a persistência para evitar erros de LockManager (Navigator LockManager timeout)
+export const supabase = createClient(validUrl, validKey, {
+  auth: {
+    persistSession: !isPlaceholder,
+    autoRefreshToken: !isPlaceholder,
+    detectSessionInUrl: !isPlaceholder,
+    // Em ambientes de desenvolvimento/placeholder, desativamos o LockManager para evitar deadlocks
+    ...(isPlaceholder ? { storage: {
+      getItem: () => null,
+      setItem: () => {},
+      removeItem: () => {},
+    }} : {})
+  }
+});
 
 // Helper para converter snake_case (Banco) para camelCase (App)
 export const mapCompanyFromDB = (data: any): any => ({
@@ -36,7 +51,7 @@ export const mapCompanyFromDB = (data: any): any => ({
 });
 
 export const mapCompanyToDB = (data: any): any => ({
-  id: data.id, // Mapeamento do ID incluído para permitir inserção manual
+  id: data.id,
   nome_empresa: data.nomeEmpresa,
   cnpj: data.cnpj,
   banco_agencia: data.bancoAgencia,
@@ -72,11 +87,11 @@ export const mapPayableFromDB = (data: any): any => ({
 });
 
 export const mapPayableToDB = (data: any): any => ({
-  id: data.id, // Agora passamos o ID gerado no front
+  id: data.id,
   company_id: data.companyId,
   tipo: data.tipo,
-  nome_favorecido: data.nomeFavorecido,
-  cpf_cnpj_favorecido: data.cpf_cnpj_favorecido,
+  nome__favorecido: data.nomeFavorecido,
+  cpf_cnpj_favorecido: data.cpfCnpjFavorecido,
   numero_nf: data.numeroNF,
   filial: data.filial,
   setor: data.setor,
