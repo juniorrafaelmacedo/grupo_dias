@@ -12,8 +12,8 @@ const getSispagAttributes = (p: Payable): { forma: string; tipoServico: string; 
   if (p.tipo === '02') {
     const bankCode = p.codigoBarras ? p.codigoBarras.substring(0, 3) : '000';
     const isItau = bankCode === '341';
-    // SISPAG v085: Boletos exigem layout de lote 030
-    return { tipoServico: '20', forma: isItau ? '31' : '30', layoutLote: '030' };
+    // SISPAG v085: Para boletos, o especialista indica Serviço 03 (Cobrança) e Forma 30
+    return { tipoServico: '03', forma: '30', layoutLote: '030' };
   }
   if (p.tipo === '04') {
     return { tipoServico: '22', forma: '13', layoutLote: '030' };
@@ -48,7 +48,7 @@ export const generateCNAB240 = (
   });
 
   const addLine = (line: string) => {
-    // Garante rigorosamente 240 caracteres com espaços
+    // Garante rigorosamente 240 caracteres
     lines.push(line.padEnd(240, ' ').substring(0, 240));
   };
 
@@ -86,12 +86,15 @@ export const generateCNAB240 = (
     let totalValorLote = 0;
 
     // --- HEADER DE LOTE (Registro 1) ---
-    // Pos 009: Operação 'C' (Crédito) - Essencial para SISPAG
-    let headerLote = '341' + loteSeq + '1' + 'C'; 
-    headerLote += padLeft(group.tipoServico, 2); // 010-011
-    headerLote += padLeft(group.forma, 2);       // 012-013
-    headerLote += padLeft(group.layoutLote, 3);  // 014-016
-    headerLote += ' ';                           // 017
+    // Pos 009: Operação '1' (Lançamento) conforme especialista
+    // Pos 010-011: Serviço '03' (Cobrança)
+    // Pos 012-013: Forma '30' (Pagamento Títulos)
+    // Pos 014-016: Layout '030'
+    let headerLote = '341' + loteSeq + '1' + '1'; 
+    headerLote += padLeft(group.tipoServico, 2); 
+    headerLote += padLeft(group.forma, 2);       
+    headerLote += padLeft(group.layoutLote, 3);  
+    headerLote += ' ';                           
     headerLote += company.cnpj.length > 11 ? '2' : '1';
     headerLote += padLeft(removeNonNumeric(company.cnpj), 14);
     headerLote += ' '.repeat(20);
@@ -113,7 +116,7 @@ export const generateCNAB240 = (
       const dataVenc = formatDateCNAB(p.dataVencimento);
 
       if (group.layoutLote === '040') {
-        // --- SEGMENTO A (TED/DOC/PIX) ---
+        // --- SEGMENTO A ---
         nsrBatch++;
         let segA = '341' + loteSeq + '3' + padLeft(nsrBatch, 5) + 'A';
         segA += '000'; 
@@ -129,46 +132,40 @@ export const generateCNAB240 = (
         segA += ' '.repeat(20) + ' '.repeat(6) + padLeft(removeNonNumeric(p.cpfCnpjFavorecido), 14) + ' '.repeat(2) + '00005' + ' '.repeat(5) + '0' + ' '.repeat(10);
         addLine(segA);
         recordCountGlobal++;
-
-        if (p.tipo === '06' && p.chavePix) {
-          nsrBatch++;
-          let segB = '341' + loteSeq + '3' + padLeft(nsrBatch, 5) + 'B';
-          segB += '000';
-          segB += removeNonNumeric(p.cpfCnpjFavorecido).length > 11 ? '2' : '1';
-          segB += padLeft(removeNonNumeric(p.cpfCnpjFavorecido), 14);
-          segB += ' '.repeat(30) + padRight(p.descricao, 65) + padRight(p.chavePix || '', 100) + ' '.repeat(13);
-          addLine(segB);
-          recordCountGlobal++;
-        }
       } else {
         // --- SEGMENTO J (BOLETOS) ---
         nsrBatch++;
         let segJ = '341' + loteSeq + '3' + padLeft(nsrBatch, 5) + 'J';
-        segJ += '000'; // 015-017: Tipo Movimento
+        segJ += '000'; 
         
         // CÓDIGO DE BARRAS (44 caracteres rigorosos começando na 018)
-        const barCode = removeNonNumeric(p.codigoBarras || '').padEnd(44, '0');
-        segJ += barCode; 
+        let barCode = removeNonNumeric(p.codigoBarras || '');
+        if (barCode.length === 47) {
+            // Conversão básica de linha digitável para código de barras se necessário
+            barCode = barCode.substring(0, 3) + barCode.substring(3, 4) + barCode.substring(32, 47) + barCode.substring(4, 9) + barCode.substring(10, 20) + barCode.substring(21, 31);
+        }
+        segJ += padRight(barCode.substring(0, 44), 44, '0'); 
         
         segJ += padRight(p.nomeFavorecido, 30); // 062-091
         segJ += dataVenc; // 092-099
-        segJ += valorStr15; // 100-114
-        segJ += padLeft(0, 15); // Descontos
-        segJ += padLeft(0, 15); // Acréscimos
-        segJ += dataPagto; // 145-152
-        segJ += valorStr15; // 153-167
-        segJ += padLeft(0, 15); // Qtd
-        segJ += padRight(p.id.substring(0, 20), 20); // Seu Número
-        segJ += padLeft(0, 15); // Nosso Número
-        segJ += ' '; // Branco
+        segJ += valorStr15; // 100-114 (VALOR DO TITULO)
+        segJ += padLeft(0, 15); // 115-129 (DESCONTO)
+        segJ += padLeft(0, 15); // 130-144 (ACRESCIMO)
+        segJ += dataPagto; // 145-152 (DATA PAGAMENTO)
+        segJ += valorStr15; // 153-167 (VALOR PAGAMENTO)
+        segJ += padLeft(0, 15); // 168-182 (QUANTIDADE)
+        segJ += padRight(p.id.substring(0, 20), 20); // 183-202 (SEU NUMERO)
+        segJ += padLeft(0, 15); // 203-217 (NOSSO NUMERO)
+        segJ += ' '; // 218
         addLine(segJ);
         recordCountGlobal++;
 
-        // --- SEGMENTO J-52 (DADOS DO CEDENTE/SACADO) ---
+        // --- SEGMENTO J-52 (FORMATO ESPECIALISTA) ---
         nsrBatch++;
-        let segJ52 = '341' + loteSeq + '3' + padLeft(nsrBatch, 5) + 'J';
-        segJ52 += '000'; // 015-017: Movimento
-        segJ52 += '52';  // 018-019: IDENTIFICADOR DO J-52 (Crítico!)
+        let segJ52 = '341' + loteSeq + '3' + padLeft(nsrBatch, 5);
+        segJ52 += '5';   // 014: SEGMENTO 5
+        segJ52 += '000'; // 015-017: MOVIMENTO
+        segJ52 += '2J';  // 018-019: CÓDIGO 2J conforme especialista
         
         // Pagador (Nós/Empresa)
         segJ52 += (company.cnpj.length > 11 ? '2' : '1');
@@ -180,7 +177,7 @@ export const generateCNAB240 = (
         segJ52 += padLeft(removeNonNumeric(p.cpfCnpjFavorecido), 15);
         segJ52 += padRight(p.nomeFavorecido, 40);
         
-        // Sacador Avalista (Vazio)
+        // Sacador Avalista (Branco)
         segJ52 += '0';
         segJ52 += padLeft(0, 15);
         segJ52 += ' '.repeat(40);
@@ -193,7 +190,7 @@ export const generateCNAB240 = (
     // --- TRAILER DE LOTE (Registro 5) ---
     let trailerLote = '341' + loteSeq + '5';
     trailerLote += ' '.repeat(9); 
-    trailerLote += padLeft(nsrBatch + 2, 6); // Qtd registros
+    trailerLote += padLeft(nsrBatch + 2, 6); 
     trailerLote += padLeft(Math.round(totalValorLote * 100), 18);
     trailerLote += padLeft(0, 18); 
     trailerLote += ' '.repeat(171); 
