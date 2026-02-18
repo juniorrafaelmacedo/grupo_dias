@@ -86,10 +86,9 @@ export const Layout: React.FC = () => {
 
           <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 py-2 rounded-lg transition-colors text-sm font-medium"><LogOut size={16} />Sair do Sistema</button>
           
-          {/* Marcador de Versão */}
           <div className="text-center pt-2 pb-1 border-t border-slate-800/50 mt-2">
             <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest flex items-center justify-center gap-1">
-              <Info size={10} /> Sistema DIAS+ v4.1.2
+              <Info size={10} /> Sistema DIAS+ v4.1.3
             </p>
           </div>
         </div>

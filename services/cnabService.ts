@@ -12,10 +12,11 @@ const getSispagAttributes = (p: Payable): { forma: string; tipoServico: string; 
   if (p.tipo === '02') {
     const bankCode = p.codigoBarras ? p.codigoBarras.substring(0, 3) : '000';
     const isItau = bankCode === '341';
-    return { tipoServico: '20', forma: isItau ? '30' : '31', layoutLote: '030' };
+    // Para Boletos, v085 exige layout 040 no lote
+    return { tipoServico: '20', forma: isItau ? '30' : '31', layoutLote: '040' };
   }
   if (p.tipo === '04') {
-    return { tipoServico: '22', forma: '13', layoutLote: '030' };
+    return { tipoServico: '22', forma: '13', layoutLote: '040' };
   }
   if (p.tipo === '06') {
     return { tipoServico: '20', forma: '45', layoutLote: '040' };
@@ -54,7 +55,7 @@ export const generateCNAB240 = (
   let recordCountGlobal = 0;
 
   // --- HEADER DE ARQUIVO (Registro 0) ---
-  let header = '34100000'; // Banco + Lote + Registro
+  let header = '34100000'; 
   header += padRight('', 9);
   header += company.cnpj.length > 11 ? '2' : '1';
   header += padLeft(removeNonNumeric(company.cnpj), 14);
@@ -71,8 +72,8 @@ export const generateCNAB240 = (
   header += dateGeracao;
   header += timeGeracao;
   header += padLeft(fileSequence, 6);
-  header += '085'; // CRÍTICO: Versão 085 para SISPAG
-  header += padLeft(0, 5);
+  header += '085'; 
+  header += '00000';
   header += padRight('', 69);
   addLine(header);
   recordCountGlobal++;
@@ -88,7 +89,7 @@ export const generateCNAB240 = (
     let headerLote = '341' + loteSeq + '1C';
     headerLote += padLeft(group.tipoServico, 2);
     headerLote += padLeft(group.forma, 2);
-    headerLote += group.layoutLote;
+    headerLote += group.layoutLote; // 040 para SISPAG v085
     headerLote += ' ';
     headerLote += company.cnpj.length > 11 ? '2' : '1';
     headerLote += padLeft(removeNonNumeric(company.cnpj), 14);
@@ -108,10 +109,11 @@ export const generateCNAB240 = (
       const valorStr = Math.round(p.valor * 100).toString();
       const dataPagto = formatDateCNAB(p.dataPagamento);
 
-      if (group.layoutLote === '040') {
+      if (group.layoutLote === '040' && p.tipo !== '02' && p.tipo !== '04') {
+        // --- SEGMENTO A (TED/DOC/PIX) ---
         nsrBatch++;
         let segA = '341' + loteSeq + '3' + padLeft(nsrBatch, 5) + 'A000';
-        segA += p.tipo === '06' ? '009' : '018';
+        segA += p.tipo === '06' ? '009' : '018'; // 018=Transferencia, 009=PIX
         segA += padLeft(p.bancoDestino || '000', 3);
         segA += padLeft(p.agenciaDestino || '0', 5) + ' ' + padLeft(p.contaDestino || '0', 12) + padLeft(p.contaDestinoDV || '0', 1) + ' ';
         segA += padRight(p.nomeFavorecido, 30);
@@ -134,23 +136,47 @@ export const generateCNAB240 = (
           recordCountGlobal++;
         }
       } else {
+        // --- SEGMENTO J (BOLETOS) ---
         nsrBatch++;
-        let segJ = '341' + loteSeq + '3' + padLeft(nsrBatch, 5) + 'J000';
+        let segJ = '341' + loteSeq + '3' + padLeft(nsrBatch, 5) + 'J';
+        segJ += '   '; // 015-017: Brancos/Zeros
+        segJ += '01';  // 018-019: CÓDIGO DE MOVIMENTO (01 = INCLUSÃO) - CRÍTICO
+        
         const barCode = removeNonNumeric(p.codigoBarras || '');
-        if (barCode.length >= 44) {
-          segJ += padLeft(barCode.substring(0, 3), 3) + padLeft(barCode.substring(3, 4), 1) + padLeft(barCode.substring(4, 5), 1) + padLeft(barCode.substring(5, 9), 4) + padLeft(barCode.substring(9, 19), 10) + padRight(barCode.substring(19, 44), 25);
-        } else {
-          segJ += padRight(barCode, 44);
-        }
-        segJ += padRight(p.nomeFavorecido, 30) + formatDateCNAB(p.dataVencimento) + padLeft(valorStr, 15) + padLeft(0, 15) + padLeft(0, 15) + dataPagto + padLeft(valorStr, 15) + padLeft(0, 15) + padLeft(p.id.substring(0, 20), 20) + padRight('', 38);
+        segJ += padRight(barCode, 44); // 020-063: Código de Barras
+        
+        segJ += padRight(p.nomeFavorecido, 30); // 064-093
+        segJ += formatDateCNAB(p.dataVencimento); // 094-101
+        segJ += padLeft(valorStr, 15); // 102-116
+        segJ += padLeft(0, 15); // Desconto
+        segJ += padLeft(0, 15); // Acréscimo
+        segJ += dataPagto; // Data Pagto
+        segJ += padLeft(valorStr, 15); // Valor Pagto
+        segJ += padLeft(0, 15); // Quantidade
+        segJ += padLeft(p.id.substring(0, 20), 20); // Seu Numero
+        segJ += padRight('', 38); 
         addLine(segJ);
         recordCountGlobal++;
 
+        // --- SEGMENTO J-52 (OBRIGATÓRIO) ---
         nsrBatch++;
-        let segJ52 = '341' + loteSeq + '3' + padLeft(nsrBatch, 5) + 'J00052';
-        segJ52 += (company.cnpj.length > 11 ? '2' : '1') + padLeft(removeNonNumeric(company.cnpj), 15) + padRight(company.nomeEmpresa, 40);
-        segJ52 += (removeNonNumeric(p.cpfCnpjFavorecido).length > 11 ? '2' : '1') + padLeft(removeNonNumeric(p.cpfCnpjFavorecido), 15) + padRight(p.nomeFavorecido, 40);
-        segJ52 += padLeft(0, 16) + padRight('', 93);
+        let segJ52 = '341' + loteSeq + '3' + padLeft(nsrBatch, 5) + 'J';
+        segJ52 += '   '; // 015-017
+        segJ52 += '01';  // 018-019: Movimento
+        segJ52 += '52';  // 020-021: Identificador Registro Opcional
+        
+        // Dados do Pagador (Nós)
+        segJ52 += (company.cnpj.length > 11 ? '2' : '1');
+        segJ52 += padLeft(removeNonNumeric(company.cnpj), 15); 
+        segJ52 += padRight(company.nomeEmpresa, 40);
+        
+        // Dados do Beneficiário (Favorecido)
+        segJ52 += (removeNonNumeric(p.cpfCnpjFavorecido).length > 11 ? '2' : '1');
+        segJ52 += padLeft(removeNonNumeric(p.cpfCnpjFavorecido), 15);
+        segJ52 += padRight(p.nomeFavorecido, 40);
+        
+        segJ52 += padLeft(0, 16); // Sacador Avalista
+        segJ52 += padRight('', 93);
         addLine(segJ52);
         recordCountGlobal++;
       }
@@ -164,7 +190,7 @@ export const generateCNAB240 = (
     recordCountGlobal++;
   });
 
-  let trailerArq = '34199999' + padRight('', 9) + padLeft(loteCount, 6) + padLeft(recordCountGlobal + 1, 6) + padRight('', 211);
+  let trailerArq = '341999999' + padRight('', 9) + padLeft(loteCount, 6) + padLeft(recordCountGlobal + 1, 6) + padRight('', 211);
   addLine(trailerArq);
 
   return lines.join('\r\n') + '\r\n';
