@@ -10,10 +10,8 @@ interface PaymentGroup {
 
 const getSispagAttributes = (p: Payable): { forma: string; tipoServico: string; layoutLote: string } => {
   if (p.tipo === '02') {
-    const bankCode = p.codigoBarras ? p.codigoBarras.substring(0, 3) : '000';
-    const isItau = bankCode === '341';
-    // SISPAG v085: Para boletos, o especialista indica Serviço 03 (Cobrança) e Forma 30
-    return { tipoServico: '03', forma: '30', layoutLote: '030' };
+    // SISPAG v085: Mudança para Tipo 20 (Fornecedores) para evitar erro de "Tipo 03 não contratado"
+    return { tipoServico: '20', forma: '30', layoutLote: '030' };
   }
   if (p.tipo === '04') {
     return { tipoServico: '22', forma: '13', layoutLote: '030' };
@@ -48,7 +46,7 @@ export const generateCNAB240 = (
   });
 
   const addLine = (line: string) => {
-    // Garante rigorosamente 240 caracteres
+    // Força rigorosamente 240 caracteres com espaços à direita
     lines.push(line.padEnd(240, ' ').substring(0, 240));
   };
 
@@ -86,9 +84,9 @@ export const generateCNAB240 = (
     let totalValorLote = 0;
 
     // --- HEADER DE LOTE (Registro 1) ---
-    // Pos 009: Operação '1' (Lançamento) conforme especialista
-    // Pos 010-011: Serviço '03' (Cobrança)
-    // Pos 012-013: Forma '30' (Pagamento Títulos)
+    // Pos 009: Operação '1' (Lançamento)
+    // Pos 010-011: Serviço '20' (Pagamento Fornecedores)
+    // Pos 012-013: Forma '30' (Liquidação de Títulos - Boletos)
     // Pos 014-016: Layout '030'
     let headerLote = '341' + loteSeq + '1' + '1'; 
     headerLote += padLeft(group.tipoServico, 2); 
@@ -104,8 +102,12 @@ export const generateCNAB240 = (
     headerLote += ' ';
     headerLote += padLeft(company.bancoContaDV, 1);
     headerLote += padRight(company.nomeEmpresa, 30);
-    headerLote += ' '.repeat(38);
-    headerLote += ' '.repeat(100);
+    
+    // MENSAGEM DE FINALIDADE (pos 103-132)
+    headerLote += padRight('PAGAMENTO FORNECEDORES BOLETOS', 30);
+    
+    headerLote += ' '.repeat(38); // Complemento
+    headerLote += ' '.repeat(70); // Reservado
     addLine(headerLote);
     recordCountGlobal++;
 
@@ -136,38 +138,37 @@ export const generateCNAB240 = (
         // --- SEGMENTO J (BOLETOS) ---
         nsrBatch++;
         let segJ = '341' + loteSeq + '3' + padLeft(nsrBatch, 5) + 'J';
-        segJ += '000'; 
+        segJ += '000'; // Tipo Movimento 000 (Inclusão)
         
-        // CÓDIGO DE BARRAS (44 caracteres rigorosos começando na 018)
+        // CÓDIGO DE BARRAS (44 caracteres começando na 018)
         let barCode = removeNonNumeric(p.codigoBarras || '');
         if (barCode.length === 47) {
-            // Conversão básica de linha digitável para código de barras se necessário
             barCode = barCode.substring(0, 3) + barCode.substring(3, 4) + barCode.substring(32, 47) + barCode.substring(4, 9) + barCode.substring(10, 20) + barCode.substring(21, 31);
         }
         segJ += padRight(barCode.substring(0, 44), 44, '0'); 
         
         segJ += padRight(p.nomeFavorecido, 30); // 062-091
         segJ += dataVenc; // 092-099
-        segJ += valorStr15; // 100-114 (VALOR DO TITULO)
-        segJ += padLeft(0, 15); // 115-129 (DESCONTO)
-        segJ += padLeft(0, 15); // 130-144 (ACRESCIMO)
-        segJ += dataPagto; // 145-152 (DATA PAGAMENTO)
-        segJ += valorStr15; // 153-167 (VALOR PAGAMENTO)
-        segJ += padLeft(0, 15); // 168-182 (QUANTIDADE)
-        segJ += padRight(p.id.substring(0, 20), 20); // 183-202 (SEU NUMERO)
-        segJ += padLeft(0, 15); // 203-217 (NOSSO NUMERO)
+        segJ += valorStr15; // 100-114
+        segJ += padLeft(0, 15); // Descontos
+        segJ += padLeft(0, 15); // Acréscimos
+        segJ += dataPagto; // 145-152
+        segJ += valorStr15; // 153-167
+        segJ += padLeft(0, 15); // Quantidade
+        segJ += padRight(p.id.substring(0, 20), 20); // Seu Número
+        segJ += padLeft(0, 15); // Nosso Número
         segJ += ' '; // 218
         addLine(segJ);
         recordCountGlobal++;
 
-        // --- SEGMENTO J-52 (FORMATO ESPECIALISTA) ---
+        // --- SEGMENTO J-52 (IDENTIFICAÇÃO) ---
         nsrBatch++;
         let segJ52 = '341' + loteSeq + '3' + padLeft(nsrBatch, 5);
-        segJ52 += '5';   // 014: SEGMENTO 5
+        segJ52 += '5';   // 014: SEGMENTO 5 (Identificação Sacado/Cedente)
         segJ52 += '000'; // 015-017: MOVIMENTO
-        segJ52 += '2J';  // 018-019: CÓDIGO 2J conforme especialista
+        segJ52 += '2J';  // 018-019: CÓDIGO 2J
         
-        // Pagador (Nós/Empresa)
+        // Pagador (Nós)
         segJ52 += (company.cnpj.length > 11 ? '2' : '1');
         segJ52 += padLeft(removeNonNumeric(company.cnpj), 15); 
         segJ52 += padRight(company.nomeEmpresa, 40);
@@ -177,7 +178,7 @@ export const generateCNAB240 = (
         segJ52 += padLeft(removeNonNumeric(p.cpfCnpjFavorecido), 15);
         segJ52 += padRight(p.nomeFavorecido, 40);
         
-        // Sacador Avalista (Branco)
+        // Sacador Avalista (Vazio)
         segJ52 += '0';
         segJ52 += padLeft(0, 15);
         segJ52 += ' '.repeat(40);
