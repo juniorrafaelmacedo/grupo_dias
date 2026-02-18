@@ -47,7 +47,6 @@ export const generateCNAB240 = (
   lines.push(hArq);
   recordCountGlobal++;
 
-  // Agrupamento básico (nesta versão simplificamos para um lote principal de boletos)
   const loteSeq = '0001';
   let nsrBatch = 0;
   let totalValorLote = 0;
@@ -57,10 +56,10 @@ export const generateCNAB240 = (
   hLote = writeAt(hLote, 1, '341', 3);
   hLote = writeAt(hLote, 4, loteSeq, 4);
   hLote = writeAt(hLote, 8, '1', 1);
-  hLote = writeAt(hLote, 9, '1', 1);       // Operação: Lançamento
-  hLote = writeAt(hLote, 10, '20', 2);     // Serviço: Fornecedores
-  hLote = writeAt(hLote, 12, '30', 2);     // Forma: Boletos
-  hLote = writeAt(hLote, 14, '030', 3);    // Layout v085
+  hLote = writeAt(hLote, 9, 'C', 1);       // Operação: 'C' (Crédito) - ESSENCIAL PARA SISPAG
+  hLote = writeAt(hLote, 10, '20', 2);     // Serviço: 20 (Fornecedores)
+  hLote = writeAt(hLote, 12, '30', 2);     // Forma: 30 (Boletos)
+  hLote = writeAt(hLote, 14, '030', 3);    // Layout Lote v085
   hLote = writeAt(hLote, 18, company.cnpj.length > 11 ? '2' : '1', 1);
   hLote = writeAt(hLote, 19, removeNonNumeric(company.cnpj), 14, '0');
   hLote = writeAt(hLote, 53, company.bancoAgencia, 5, '0');
@@ -77,7 +76,7 @@ export const generateCNAB240 = (
     const dataPagto = formatDateCNAB(p.dataPagamento);
     const dataVenc = formatDateCNAB(p.dataVencimento);
 
-    // --- SEGMENTO J (Registro 3) ---
+    // --- SEGMENTO J (Detalhe - Registro 3) ---
     nsrBatch++;
     let segJ = createEmptyLine();
     segJ = writeAt(segJ, 1, '341', 3);
@@ -90,6 +89,7 @@ export const generateCNAB240 = (
     // Código de Barras (Pos 18-61)
     let barCode = removeNonNumeric(p.codigoBarras || '');
     if (barCode.length === 47) {
+        // Conversão de Linha Digitável para Código de Barras 44 posições
         barCode = barCode.substring(0, 3) + barCode.substring(3, 4) + barCode.substring(32, 47) + barCode.substring(4, 9) + barCode.substring(10, 20) + barCode.substring(21, 31);
     }
     segJ = writeAt(segJ, 18, barCode, 44, '0');
@@ -105,7 +105,7 @@ export const generateCNAB240 = (
     lines.push(segJ);
     recordCountGlobal++;
 
-    // --- SEGMENTO J-52 (Registro 3) ---
+    // --- SEGMENTO J-52 (Identificação Sacado/Cedente - Registro 3) ---
     nsrBatch++;
     let segJ52 = createEmptyLine();
     segJ52 = writeAt(segJ52, 1, '341', 3);
@@ -114,7 +114,7 @@ export const generateCNAB240 = (
     segJ52 = writeAt(segJ52, 9, nsrBatch, 5, '0');
     segJ52 = writeAt(segJ52, 14, 'J', 1);
     segJ52 = writeAt(segJ52, 15, '000', 3);
-    segJ52 = writeAt(segJ52, 18, '52', 2); // IDENTIFICADOR J-52
+    segJ52 = writeAt(segJ52, 18, '52', 2); // IDENTIFICADOR DE INSTRUÇÃO J-52
     
     // Dados do Pagador (Nós)
     segJ52 = writeAt(segJ52, 20, company.cnpj.length > 11 ? '2' : '1', 1);
@@ -134,7 +134,7 @@ export const generateCNAB240 = (
   tLote = writeAt(tLote, 1, '341', 3);
   tLote = writeAt(tLote, 4, loteSeq, 4);
   tLote = writeAt(tLote, 8, '5', 1);
-  tLote = writeAt(tLote, 18, nsrBatch + 2, 6, '0');
+  tLote = writeAt(tLote, 18, nsrBatch + 2, 6, '0'); // Qtd registros do lote (Header + NSRs + Trailer)
   tLote = writeAt(tLote, 24, Math.round(totalValorLote * 100), 18, '0');
   lines.push(tLote);
   recordCountGlobal++;
@@ -144,8 +144,8 @@ export const generateCNAB240 = (
   tArq = writeAt(tArq, 1, '341', 3);
   tArq = writeAt(tArq, 4, '9999', 4);
   tArq = writeAt(tArq, 8, '9', 1);
-  tArq = writeAt(tArq, 18, '1', 6, '0'); // Qtd lotes
-  tArq = writeAt(tArq, 24, recordCountGlobal + 1, 6, '0'); // Qtd registros
+  tArq = writeAt(tArq, 18, '1', 6, '0'); // Qtd lotes do arquivo
+  tArq = writeAt(tArq, 24, recordCountGlobal + 1, 6, '0'); // Qtd total de registros (incluindo trailer arquivo)
   lines.push(tArq);
 
   return lines.join('\r\n') + '\r\n';
