@@ -13,7 +13,7 @@ const getSispagAttributes = (p: Payable): { forma: string; tipoServico: string; 
     const bankCode = p.codigoBarras ? p.codigoBarras.substring(0, 3) : '000';
     const isItau = bankCode === '341';
     // SISPAG v085: Boletos exigem layout de lote 030
-    return { tipoServico: '20', forma: isItau ? '30' : '31', layoutLote: '030' };
+    return { tipoServico: '20', forma: isItau ? '31' : '30', layoutLote: '030' };
   }
   if (p.tipo === '04') {
     return { tipoServico: '22', forma: '13', layoutLote: '030' };
@@ -48,18 +48,18 @@ export const generateCNAB240 = (
   });
 
   const addLine = (line: string) => {
-    // Garante que cada linha tenha exatamente 240 caracteres
-    lines.push(line.substring(0, 240).padEnd(240, ' '));
+    // Garante rigorosamente 240 caracteres com espaços
+    lines.push(line.padEnd(240, ' ').substring(0, 240));
   };
 
   let recordCountGlobal = 0;
 
   // --- HEADER DE ARQUIVO (Registro 0) ---
   let header = '34100000'; 
-  header += padRight('', 9);
+  header += ' '.repeat(9);
   header += company.cnpj.length > 11 ? '2' : '1';
   header += padLeft(removeNonNumeric(company.cnpj), 14);
-  header += padRight('', 20);
+  header += ' '.repeat(20);
   header += padLeft(company.bancoAgencia, 5);
   header += ' ';
   header += padLeft(company.bancoConta, 12);
@@ -67,14 +67,14 @@ export const generateCNAB240 = (
   header += padLeft(company.bancoContaDV, 1);
   header += padRight(company.nomeEmpresa, 30);
   header += padRight('BANCO ITAU S.A.', 30);
-  header += padRight('', 10);
+  header += ' '.repeat(10);
   header += '1'; 
   header += dateGeracao;
   header += timeGeracao;
   header += padLeft(fileSequence, 6);
   header += '085'; 
   header += '00000';
-  header += padRight('', 69);
+  header += ' '.repeat(69);
   addLine(header);
   recordCountGlobal++;
 
@@ -86,30 +86,23 @@ export const generateCNAB240 = (
     let totalValorLote = 0;
 
     // --- HEADER DE LOTE (Registro 1) ---
-    // Pos 001-003: 341
-    // Pos 004-007: Lote
-    // Pos 008: 1 (Registro)
-    // Pos 009: 1 (Operação Inclusão conforme solicitado)
-    // Pos 010-011: Serviço (20)
-    // Pos 012-013: Forma (30 ou 31 ou 41 etc)
-    // Pos 014-016: Layout (030 para boletos, 040 para TED)
-    let headerLote = '341' + loteSeq + '1';
-    headerLote += '1'; // Operação: 1 (Lançamento)
-    headerLote += padLeft(group.tipoServico, 2);
-    headerLote += padLeft(group.forma, 2);
-    headerLote += padLeft(group.layoutLote, 3);
-    headerLote += ' ';
+    // Pos 009: Operação 'C' (Crédito) - Essencial para SISPAG
+    let headerLote = '341' + loteSeq + '1' + 'C'; 
+    headerLote += padLeft(group.tipoServico, 2); // 010-011
+    headerLote += padLeft(group.forma, 2);       // 012-013
+    headerLote += padLeft(group.layoutLote, 3);  // 014-016
+    headerLote += ' ';                           // 017
     headerLote += company.cnpj.length > 11 ? '2' : '1';
     headerLote += padLeft(removeNonNumeric(company.cnpj), 14);
-    headerLote += padRight('', 20);
+    headerLote += ' '.repeat(20);
     headerLote += padLeft(company.bancoAgencia, 5);
     headerLote += ' ';
     headerLote += padLeft(company.bancoConta, 12);
     headerLote += ' ';
     headerLote += padLeft(company.bancoContaDV, 1);
     headerLote += padRight(company.nomeEmpresa, 30);
-    headerLote += padRight('', 38);
-    headerLote += padRight('', 100);
+    headerLote += ' '.repeat(38);
+    headerLote += ' '.repeat(100);
     addLine(headerLote);
     recordCountGlobal++;
 
@@ -120,7 +113,7 @@ export const generateCNAB240 = (
       const dataVenc = formatDateCNAB(p.dataVencimento);
 
       if (group.layoutLote === '040') {
-        // --- SEGMENTO A (Transferências) ---
+        // --- SEGMENTO A (TED/DOC/PIX) ---
         nsrBatch++;
         let segA = '341' + loteSeq + '3' + padLeft(nsrBatch, 5) + 'A';
         segA += '000'; 
@@ -132,8 +125,8 @@ export const generateCNAB240 = (
         segA += dataPagto;
         segA += 'REA' + padLeft(0, 8);
         segA += (p.tipo === '06' && p.chavePix) ? '04' : '01';
-        segA += padLeft(0, 5) + valorStr15 + padRight('', 15) + padRight('', 5) + padLeft(0, 8) + padLeft(0, 15);
-        segA += padRight('', 20) + padRight('', 6) + padLeft(removeNonNumeric(p.cpfCnpjFavorecido), 14) + padRight('', 2) + '00005' + padRight('', 5) + '0' + padRight('', 10);
+        segA += padLeft(0, 5) + valorStr15 + ' '.repeat(15) + ' '.repeat(5) + padLeft(0, 8) + padLeft(0, 15);
+        segA += ' '.repeat(20) + ' '.repeat(6) + padLeft(removeNonNumeric(p.cpfCnpjFavorecido), 14) + ' '.repeat(2) + '00005' + ' '.repeat(5) + '0' + ' '.repeat(10);
         addLine(segA);
         recordCountGlobal++;
 
@@ -143,7 +136,7 @@ export const generateCNAB240 = (
           segB += '000';
           segB += removeNonNumeric(p.cpfCnpjFavorecido).length > 11 ? '2' : '1';
           segB += padLeft(removeNonNumeric(p.cpfCnpjFavorecido), 14);
-          segB += padRight('', 30) + padRight(p.descricao, 65) + padRight(p.chavePix || '', 100) + padRight('', 13);
+          segB += ' '.repeat(30) + padRight(p.descricao, 65) + padRight(p.chavePix || '', 100) + ' '.repeat(13);
           addLine(segB);
           recordCountGlobal++;
         }
@@ -151,49 +144,47 @@ export const generateCNAB240 = (
         // --- SEGMENTO J (BOLETOS) ---
         nsrBatch++;
         let segJ = '341' + loteSeq + '3' + padLeft(nsrBatch, 5) + 'J';
-        segJ += '000'; // 015-017: Tipo de Movimento (Inclusão)
+        segJ += '000'; // 015-017: Tipo Movimento
         
-        // CÓDIGO DE BARRAS (44 caracteres rigorosos)
+        // CÓDIGO DE BARRAS (44 caracteres rigorosos começando na 018)
         const barCode = removeNonNumeric(p.codigoBarras || '').padEnd(44, '0');
-        segJ += barCode; // 018-061: Código de Barras
+        segJ += barCode; 
         
         segJ += padRight(p.nomeFavorecido, 30); // 062-091
         segJ += dataVenc; // 092-099
-        segJ += valorStr15; // 100-114: Valor do Título
-        segJ += padLeft(0, 15); // 115-129: Desconto
-        segJ += padLeft(0, 15); // 130-144: Acréscimo
-        segJ += dataPagto; // 145-152: Data Pagamento
-        segJ += valorStr15; // 153-167: Valor Pagamento
-        segJ += padLeft(0, 15); // 168-182: Quantidade
-        segJ += padLeft(p.id.substring(0, 20), 20); // 183-202: Seu Número
-        segJ += padLeft(0, 15); // 203-217: Nosso Número
-        segJ += ' '; // 218: Branco
-        segJ += padRight('', 22); // 219-240: Brancos
+        segJ += valorStr15; // 100-114
+        segJ += padLeft(0, 15); // Descontos
+        segJ += padLeft(0, 15); // Acréscimos
+        segJ += dataPagto; // 145-152
+        segJ += valorStr15; // 153-167
+        segJ += padLeft(0, 15); // Qtd
+        segJ += padRight(p.id.substring(0, 20), 20); // Seu Número
+        segJ += padLeft(0, 15); // Nosso Número
+        segJ += ' '; // Branco
         addLine(segJ);
         recordCountGlobal++;
 
-        // --- SEGMENTO J-52 (OBRIGATÓRIO PARA BOLETOS) ---
+        // --- SEGMENTO J-52 (DADOS DO CEDENTE/SACADO) ---
         nsrBatch++;
         let segJ52 = '341' + loteSeq + '3' + padLeft(nsrBatch, 5) + 'J';
         segJ52 += '000'; // 015-017: Movimento
-        segJ52 += '52';  // 018-019: Registro Opcional 52
+        segJ52 += '52';  // 018-019: IDENTIFICADOR DO J-52 (Crítico!)
         
-        // Dados do Pagador (Empresa)
-        segJ52 += (company.cnpj.length > 11 ? '2' : '1'); // 020
-        segJ52 += padLeft(removeNonNumeric(company.cnpj), 15); // 021-035
-        segJ52 += padRight(company.nomeEmpresa, 40); // 036-075
+        // Pagador (Nós/Empresa)
+        segJ52 += (company.cnpj.length > 11 ? '2' : '1');
+        segJ52 += padLeft(removeNonNumeric(company.cnpj), 15); 
+        segJ52 += padRight(company.nomeEmpresa, 40);
         
-        // Dados do Beneficiário (Favorecido)
-        segJ52 += (removeNonNumeric(p.cpfCnpjFavorecido).length > 11 ? '2' : '1'); // 076
-        segJ52 += padLeft(removeNonNumeric(p.cpfCnpjFavorecido), 15); // 077-091
-        segJ52 += padRight(p.nomeFavorecido, 40); // 092-131
+        // Beneficiário (Fornecedor)
+        segJ52 += (removeNonNumeric(p.cpfCnpjFavorecido).length > 11 ? '2' : '1');
+        segJ52 += padLeft(removeNonNumeric(p.cpfCnpjFavorecido), 15);
+        segJ52 += padRight(p.nomeFavorecido, 40);
         
-        // Dados do Pagador de Origem (N/A)
-        segJ52 += '0'; // 132
-        segJ52 += padLeft(0, 15); // 133-147
-        segJ52 += padRight('', 40); // 148-187
+        // Sacador Avalista (Vazio)
+        segJ52 += '0';
+        segJ52 += padLeft(0, 15);
+        segJ52 += ' '.repeat(40);
         
-        segJ52 += padRight('', 53); // 188-240: Brancos
         addLine(segJ52);
         recordCountGlobal++;
       }
@@ -202,8 +193,8 @@ export const generateCNAB240 = (
     // --- TRAILER DE LOTE (Registro 5) ---
     let trailerLote = '341' + loteSeq + '5';
     trailerLote += ' '.repeat(9); 
-    trailerLote += padLeft(nsrBatch + 2, 6); // Qtd registros no lote
-    trailerLote += padLeft(Math.round(totalValorLote * 100), 18); // Valor total do lote
+    trailerLote += padLeft(nsrBatch + 2, 6); // Qtd registros
+    trailerLote += padLeft(Math.round(totalValorLote * 100), 18);
     trailerLote += padLeft(0, 18); 
     trailerLote += ' '.repeat(171); 
     trailerLote += ' '.repeat(10); 
