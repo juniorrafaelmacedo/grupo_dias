@@ -50,6 +50,7 @@ export const generateCNAB240 = (
 
   const loteSeq = '0001';
   let nsrBatch = 0;
+  let loteRecordCount = 0;
   let totalValorLote = 0;
 
   // --- HEADER DE LOTE (Registro 1) ---
@@ -79,6 +80,7 @@ export const generateCNAB240 = (
   hLote = writeAt(hLote, 231, '', 10); // Ocorrências
   lines.push(hLote);
   recordCountGlobal++;
+  loteRecordCount++;
 
   payments.forEach((p) => {
     totalValorLote += p.valor;
@@ -118,9 +120,10 @@ export const generateCNAB240 = (
     segJ = writeAt(segJ, 231, '', 10); // Ocorrências
     lines.push(segJ);
     recordCountGlobal++;
+    loteRecordCount++;
 
     // --- SEGMENTO J-52 (Identificação Sacado/Cedente - Registro 3) ---
-    nsrBatch++;
+    // NÃO incrementa nsrBatch para J-52 (deve ser o mesmo do J pai)
     let segJ52 = createEmptyLine();
     segJ52 = writeAt(segJ52, 1, '341', 3);
     segJ52 = writeAt(segJ52, 4, loteSeq, 4);
@@ -141,6 +144,7 @@ export const generateCNAB240 = (
     segJ52 = writeAt(segJ52, 92, p.nomeFavorecido, 40);
     lines.push(segJ52);
     recordCountGlobal++;
+    loteRecordCount++;
   });
 
   // --- TRAILER DE LOTE (Registro 5) ---
@@ -148,7 +152,7 @@ export const generateCNAB240 = (
   tLote = writeAt(tLote, 1, '341', 3);
   tLote = writeAt(tLote, 4, loteSeq, 4);
   tLote = writeAt(tLote, 8, '5', 1);
-  tLote = writeAt(tLote, 18, nsrBatch + 2, 6, '0'); // Qtd registros do lote (Header + NSRs + Trailer)
+  tLote = writeAt(tLote, 18, loteRecordCount + 1, 6, '0'); // Qtd registros do lote (Header + Detalhes + Trailer)
   tLote = writeAt(tLote, 24, Math.round(totalValorLote * 100), 18, '0');
   tLote = writeAt(tLote, 42, '0', 18, '0'); // Zeros (Pos 42-59)
   tLote = writeAt(tLote, 60, '', 171); // Brancos
