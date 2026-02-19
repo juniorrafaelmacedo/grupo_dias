@@ -76,7 +76,7 @@ export const Login: React.FC = () => {
 
         <div className="mt-8 text-center">
           <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">&copy; {new Date().getFullYear()} Grupo Dias | Logistics</p>
-          <p className="text-[9px] text-dias-teal/60 font-bold mt-1">BUILD v4.2.5 - CNAB 085 SEGMENT J FIXED</p>
+          <p className="text-[9px] text-dias-teal/60 font-bold mt-1">BUILD v4.2.6 - CNAB 085 FIXED</p>
         </div>
       </div>
       <div className="absolute top-0 left-0 w-full h-1/2 bg-dias-teal/5 skew-y-3 transform -translate-y-20 z-0"></div>

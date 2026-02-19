@@ -8,6 +8,13 @@ export interface Company {
   bancoConta: string;
   bancoContaDV: string;
   convenio?: string;
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string;
+  cep?: string;
+  estado?: string;
 }
 
 export interface User {

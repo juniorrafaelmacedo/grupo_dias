@@ -88,7 +88,7 @@ export const Layout: React.FC = () => {
           
           <div className="text-center pt-2 pb-1 border-t border-slate-800/50 mt-2">
             <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest flex items-center justify-center gap-1">
-              <Info size={10} /> Sistema DIAS+ v4.2.5
+              <Info size={10} /> Sistema DIAS+ v4.2.6
             </p>
           </div>
         </div>
