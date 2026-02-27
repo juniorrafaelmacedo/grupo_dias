@@ -32,6 +32,8 @@ export const generateCNAB240 = (
   hArq = writeAt(hArq, 1, '341', 3);
   hArq = writeAt(hArq, 4, '0000', 4);
   hArq = writeAt(hArq, 8, '0', 1);
+  hArq = writeAt(hArq, 9, '', 6); // Brancos (Pos 9-14)
+  hArq = writeAt(hArq, 15, '080', 3); // Versão do Layout do Arquivo (Matching Model)
   hArq = writeAt(hArq, 18, company.cnpj.length > 11 ? '2' : '1', 1);
   hArq = writeAt(hArq, 19, removeNonNumeric(company.cnpj), 14, '0');
   hArq = writeAt(hArq, 53, company.bancoAgencia, 5, '0');
@@ -42,7 +44,6 @@ export const generateCNAB240 = (
   hArq = writeAt(hArq, 143, '1', 1);
   hArq = writeAt(hArq, 144, dateGeracao, 8);
   hArq = writeAt(hArq, 152, timeGeracao, 6);
-  hArq = writeAt(hArq, 15, '085', 3); // Versão do Layout do Arquivo
   hArq = writeAt(hArq, 158, '0', 9, '0'); // Zeros (Pos 158-166)
   hArq = writeAt(hArq, 167, '0', 5, '0'); // Unidade de Densidade (Pos 167-171)
   lines.push(hArq);
@@ -61,14 +62,14 @@ export const generateCNAB240 = (
   hLote = writeAt(hLote, 9, 'C', 1);       // Operação: 'C' (Crédito)
   hLote = writeAt(hLote, 10, '20', 2);     // Serviço: 20 (Fornecedores)
   hLote = writeAt(hLote, 12, '30', 2);     // Forma: 30 (Boletos)
-  hLote = writeAt(hLote, 14, '030', 3);    // Layout Lote v030
+  hLote = writeAt(hLote, 14, '040', 3);    // Layout Lote v040 (Matching Model)
   hLote = writeAt(hLote, 18, company.cnpj.length > 11 ? '2' : '1', 1);
   hLote = writeAt(hLote, 19, removeNonNumeric(company.cnpj), 14, '0');
   hLote = writeAt(hLote, 53, company.bancoAgencia, 5, '0');
   hLote = writeAt(hLote, 59, company.bancoConta, 12, '0');
   hLote = writeAt(hLote, 72, company.bancoContaDV, 1);
   hLote = writeAt(hLote, 73, company.nomeEmpresa, 30);
-  hLote = writeAt(hLote, 103, 'PAGAMENTO FORNECEDORES BOLETOS', 30);
+  hLote = writeAt(hLote, 103, '', 30); // Brancos (Pos 103-132)
   hLote = writeAt(hLote, 133, '', 10); // Histórico C/C
   hLote = writeAt(hLote, 143, company.logradouro || '', 30); // Endereço Empresa
   hLote = writeAt(hLote, 173, removeNonNumeric(company.numero || '0'), 5, '0'); // Número do Local
@@ -76,8 +77,7 @@ export const generateCNAB240 = (
   hLote = writeAt(hLote, 193, company.cidade || '', 20); // Cidade
   hLote = writeAt(hLote, 213, removeNonNumeric(company.cep || '0'), 8, '0'); // CEP
   hLote = writeAt(hLote, 221, company.estado || '', 2); // Estado
-  hLote = writeAt(hLote, 223, '', 8); // Brancos
-  hLote = writeAt(hLote, 231, '', 10); // Ocorrências
+  hLote = writeAt(hLote, 223, '', 18); // Brancos (Pos 223-240)
   lines.push(hLote);
   recordCountGlobal++;
   loteRecordCount++;
@@ -89,7 +89,7 @@ export const generateCNAB240 = (
     const dataVenc = formatDateCNAB(p.dataVencimento);
 
     // --- SEGMENTO J (Detalhe - Registro 3) ---
-    nsrBatch++;
+    nsrBatch++; // Incrementa NSR para o par J/J-52
     let segJ = createEmptyLine();
     segJ = writeAt(segJ, 1, '341', 3);
     segJ = writeAt(segJ, 4, loteSeq, 4);
@@ -113,9 +113,9 @@ export const generateCNAB240 = (
     segJ = writeAt(segJ, 130, '0', 15, '0'); // Acréscimos
     segJ = writeAt(segJ, 145, dataPagto, 8);
     segJ = writeAt(segJ, 153, valorStr15, 15, '0');
-    segJ = writeAt(segJ, 168, '0', 15, '0'); // Zeros
+    segJ = writeAt(segJ, 168, '0', 15, '0'); // Zeros (Pos 168-182)
     segJ = writeAt(segJ, 183, p.id.substring(0, 20), 20); // Seu Número
-    segJ = writeAt(segJ, 203, '', 13); // Brancos
+    segJ = writeAt(segJ, 203, '', 13); // Brancos (Pos 203-215)
     segJ = writeAt(segJ, 216, '', 15); // Nosso Número (Brancos na remessa)
     segJ = writeAt(segJ, 231, '', 10); // Ocorrências
     lines.push(segJ);
@@ -123,7 +123,7 @@ export const generateCNAB240 = (
     loteRecordCount++;
 
     // --- SEGMENTO J-52 (Identificação Sacado/Cedente - Registro 3) ---
-    // NÃO incrementa nsrBatch para J-52 (deve ser o mesmo do J pai)
+    // NSR para J-52 deve ser o MESMO do Segmento J pai
     let segJ52 = createEmptyLine();
     segJ52 = writeAt(segJ52, 1, '341', 3);
     segJ52 = writeAt(segJ52, 4, loteSeq, 4);
